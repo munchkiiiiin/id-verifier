@@ -4,6 +4,7 @@ import { ScannerTab } from "./components/ScannerTab";
 import { DatabaseTab } from "./components/DatabaseTab";
 import { cn } from "./lib/utils";
 import { motion } from "motion/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 type Tab = "scanner" | "database";
 
@@ -90,6 +91,7 @@ export default function App() {
           );
         })}
       </nav>
+      <SpeedInsights />
     </div>
   );
 }
