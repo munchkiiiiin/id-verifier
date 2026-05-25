@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+
+  /* Core palette */
+  --color-brand-bg-deep:       #07070A;
+  --color-brand-bg-dark:       #0A0A0E;
+  --color-brand-bg-grad-start: #0C0C12;
+  --color-brand-bg-grad-end:   #07070A;
+  --color-brand-border:        rgba(255, 255, 255, 0.06);
+
+  /* Accent */
+  --color-accent:              #F6BE5A;
+  --color-accent-dim:          rgba(246, 190, 90, 0.15);
+  --color-accent-glow:         rgba(246, 190, 90, 0.35);
+
+  /* Glass */
+  --color-glass-border:        rgba(255, 255, 255, 0.08);
+  --color-glass-bg:            rgba(255, 255, 255, 0.03);
+  --color-glass-bg-hover:      rgba(255, 255, 255, 0.06);
+
+  /* Status */
+  --color-status-valid-text:   #34D399;
+  --color-status-valid-bg:     rgba(52, 211, 153, 0.10);
+  --color-status-valid-border: rgba(52, 211, 153, 0.30);
+
+  --color-status-expired-text:   #F87171;
+  --color-status-expired-bg:     rgba(248, 113, 113, 0.10);
+  --color-status-expired-border: rgba(248, 113, 113, 0.30);
+
+  /* Fluid spacing scale */
+  --space-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --space-safe-top:    env(safe-area-inset-top, 0px);
+}
+
+/* ─── Reset & base ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* Fluid base font: 14px on tiny screens → 16px on 390px+ */
+  font-size: clamp(13px, 3.5vw, 16px);
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  background-color: var(--color-brand-bg-deep);
+  color: #E5E7EB;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+}
+
+/* ─── Utility classes ──────────────────────────────────────────────── */
+@layer utilities {
+  .serif {
+    font-family: var(--font-serif);
+  }
+
+  /* Glassmorphism card */
+  .glass {
+    background: var(--color-glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-glass-border);
+  }
+  .glass-hover:hover {
+    background: var(--color-glass-bg-hover);
+  }
+
+  /* Subtle accent glow on interactive elements */
+  .glow-accent {
+    box-shadow: 0 0 24px var(--color-accent-glow);
+  }
+
+  /* Scanner overlay gradient */
+  .scanner-gradient {
+    background: linear-gradient(
+      180deg,
+      rgba(16, 185, 129, 0) 0%,
+      rgba(16, 185, 129, 0.18) 50%,
+      rgba(16, 185, 129, 0) 100%
+    );
+  }
+
+  /* Status badges */
+  .status-valid {
+    color: var(--color-status-valid-text);
+    background: var(--color-status-valid-bg);
+    border: 1px solid var(--color-status-valid-border);
+  }
+  .status-expired {
+    color: var(--color-status-expired-text);
+    background: var(--color-status-expired-bg);
+    border: 1px solid var(--color-status-expired-border);
+  }
+
+  /* Safe area padding helpers */
+  .pt-safe  { padding-top:    max(0.5rem, var(--space-safe-top)); }
+  .pb-safe  { padding-bottom: max(0.5rem, var(--space-safe-bottom)); }
+
+
+
+  /* Fluid text helpers */
+  .text-fluid-xs   { font-size: clamp(0.6rem,  1.8vw, 0.7rem); }
+  .text-fluid-sm   { font-size: clamp(0.75rem, 2.2vw, 0.875rem); }
+  .text-fluid-base { font-size: clamp(0.875rem, 2.8vw, 1rem); }
+  .text-fluid-lg   { font-size: clamp(1rem,    3.2vw, 1.25rem); }
+  .text-fluid-xl   { font-size: clamp(1.25rem, 4vw,   1.75rem); }
+  .text-fluid-2xl  { font-size: clamp(1.5rem,  5.5vw, 2.25rem); }
+
+  /* Smooth scrolling list */
+  .scroll-smooth-y {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Input base */
+  .input-base {
+    width: 100%;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 0.875rem;
+    padding: 0.75rem 1rem;
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
+    color: #fff;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: var(--font-sans);
+  }
+  .input-base:focus {
+    border-color: rgba(246, 190, 90, 0.50);
+  }
+  .input-base::placeholder {
+    color: rgba(255,255,255,0.20);
+  }
+
+  /* Primary CTA button */
+  .btn-primary {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    border-radius: 0.875rem;
+    font-size: clamp(0.65rem, 1.8vw, 0.75rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #fff;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.10);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .btn-primary:hover  { background: rgba(255,255,255,0.12); }
+  .btn-primary:active { transform: scale(0.97); background: rgba(255,255,255,0.18); }
+
+  /* Icon action button (round) */
+  .btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    color: rgba(255,255,255,0.4);
+  }
+  .btn-icon:hover  { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.9); }
+  .btn-icon:active { transform: scale(0.92); }
+}
+
+/* ─── Scrollbar (WebKit) ───────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 3px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: rgba(255,255,255,0.12); border-radius: 999px; }
