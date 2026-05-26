@@ -58,7 +58,10 @@ Set these environment variables in Vercel:
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_publishable_or_anon_key
 VITE_APP_ORIGIN=https://id-verifier-black.vercel.app
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_server_only
 ```
+
+The `SUPABASE_SERVICE_ROLE_KEY` is used only by the serverless endpoint at `api/verify-token` to verify QR tokens for anonymous link opens. Never expose it in client code.
 
 Build command:
 

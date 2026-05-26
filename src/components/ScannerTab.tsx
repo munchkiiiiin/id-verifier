@@ -65,18 +65,15 @@ export function ScannerTab() {
     if (!raw || !isLoaded) return;
     let token = extractTokenFromQrValue(raw);
     try { const p = JSON.parse(raw); if (p.token) token = String(p.token).trim(); else if (p.id) token = String(p.id).trim(); } catch {}
-    console.debug("resolveToken: raw=", raw, "-> token=", token, "isLoaded=", isLoaded);
     try {
       const employee = await fetchEmployeeByToken(token);
-      console.debug("fetchEmployeeByToken returned:", employee);
       if (employee) {
         const expired = isBefore(startOfDay(parseISO(employee.expiryDate)), startOfDay(new Date()));
         pushLog({ status: expired ? "expired" : "valid", employee, scannedToken: token });
       } else {
         pushLog({ status: "not_found", scannedToken: token });
       }
-    } catch (err) {
-      console.error("resolveToken error:", err);
+    } catch {
       pushLog({ status: "invalid_qr" });
     }
   }, [fetchEmployeeByToken, isLoaded]);
@@ -93,7 +90,6 @@ export function ScannerTab() {
       return;
     }
 
-    console.debug("Initial token from URL:", initialToken);
     handledInitialTokenRef.current = true;
     (async () => {
       setIsProcessing(true);

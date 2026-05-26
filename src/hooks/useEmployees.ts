@@ -163,6 +163,22 @@ export function useEmployees() {
     return employees.find((e) => e.id === id);
   };
 
+  const fetchEmployeeByTokenViaApi = async (token: string): Promise<Employee | null> => {
+    try {
+      const response = await fetch(`/api/verify-token?token=${encodeURIComponent(token)}`);
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = (await response.json()) as { employee: Record<string, unknown> | null };
+      if (!payload.employee) return null;
+
+      return mapRowToEmployee(payload.employee);
+    } catch {
+      return null;
+    }
+  };
+
   // For the scanner, fetch online directly by token (which is the document ID)
   const fetchEmployeeByToken = async (token: string): Promise<Employee | null> => {
     const { data, error } = await supabase
@@ -171,13 +187,12 @@ export function useEmployees() {
       .eq("id", token)
       .maybeSingle();
 
-    if (error) {
-      console.error("Failed to fetch employee token:", error.message);
-      return null;
+    if (!error && data) {
+      return mapRowToEmployee(data as Record<string, unknown>);
     }
 
-    if (!data) return null;
-    return mapRowToEmployee(data as Record<string, unknown>);
+    // Anonymous link-open flow can be blocked by RLS; fallback to server-side verification.
+    return fetchEmployeeByTokenViaApi(token);
   };
 
   return {
