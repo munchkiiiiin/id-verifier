@@ -43,7 +43,6 @@ const FLASH_BORDER: Record<ScanStatus, string> = {
 /* ─── Main component ────────────────────────────────────────────── */
 export function ScannerTab() {
   const { fetchEmployeeByToken, isLoaded } = useEmployees();
-  const [isProcessing, setIsProcessing]   = useState(false);
   const [scanLog, setScanLog]             = useState<LogEntry[]>([]);
   const [lastFlash, setLastFlash]         = useState<ScanStatus | null>(null);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
@@ -79,26 +78,15 @@ export function ScannerTab() {
   }, [fetchEmployeeByToken, isLoaded]);
 
   useEffect(() => {
-    // Wait until employees state is loaded (so fetchEmployeeByToken works)
     if (handledInitialTokenRef.current || typeof window === "undefined") return;
 
     const initialToken = new URL(window.location.href).searchParams.get("token");
     if (!initialToken) return;
 
-    if (!isLoaded) {
-      // Defer until isLoaded is true — the effect will re-run when isLoaded changes
-      return;
-    }
+    if (!isLoaded) return;
 
     handledInitialTokenRef.current = true;
-    (async () => {
-      setIsProcessing(true);
-      try {
-        await resolveToken(initialToken);
-      } finally {
-        setIsProcessing(false);
-      }
-    })();
+    resolveToken(initialToken);
   }, [resolveToken, isLoaded]);
 
   /* ── Live camera (debounced) ────────────────────────────────── */
@@ -114,14 +102,12 @@ export function ScannerTab() {
   const handleCaptureFrame = () => {
     const video = scannerRef.current?.querySelector("video");
     if (!video) return;
-    setIsProcessing(true);
     const canvas = document.createElement("canvas");
     const ctx    = canvas.getContext("2d");
-    if (!ctx) { setIsProcessing(false); return; }
+    if (!ctx) return;
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
     const qr = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
-    setIsProcessing(false);
     if (qr) resolveToken(qr.data); else pushLog({ status: "invalid_qr" });
   };
 
@@ -129,18 +115,16 @@ export function ScannerTab() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
         const ctx    = canvas.getContext("2d");
-        if (!ctx) { setIsProcessing(false); return; }
+        if (!ctx) return;
         canvas.width = img.width; canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
         const qr = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
-        setIsProcessing(false);
         if (qr) resolveToken(qr.data); else pushLog({ status: "invalid_qr" });
       };
       img.src = ev.target?.result as string;
@@ -187,28 +171,12 @@ export function ScannerTab() {
             boxShadow: lastFlash ? undefined : "0 0 60px rgba(246,190,90,0.06), 0 20px 60px rgba(0,0,0,0.5)",
           }}
         >
-          {/* Processing overlay */}
-          <AnimatePresence>
-            {isProcessing && (
-              <motion.div
-                key="proc"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="absolute inset-0 z-30 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3"
-              >
-                <div className="w-10 h-10 border-2 border-amber-200/20 border-t-amber-300 rounded-full animate-spin" />
-                <p className="text-xs uppercase tracking-widest text-white/50">Analyzing…</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Camera */}
-          {!isProcessing && (
-            <Scanner
-              onScan={(r) => handleLiveScan(r[0].rawValue)}
-              formats={["qr_code"]}
-              styles={{ container: { width: "100%", height: "100%" } }}
-            />
-          )}
+          <Scanner
+            onScan={(r) => handleLiveScan(r[0].rawValue)}
+            formats={["qr_code"]}
+            styles={{ container: { width: "100%", height: "100%" } }}
+          />
 
           {/* Corner markers + scan line overlay */}
           <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
@@ -218,23 +186,21 @@ export function ScannerTab() {
               transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
             />
             <div className="absolute inset-0 scanner-gradient opacity-25" />
-            {!isProcessing && (
-              <div className="relative w-[58%] h-[58%]">
-                {[
-                  "top-0 left-0 border-t-[5px] border-l-[5px] rounded-tl-xl",
-                  "top-0 right-0 border-t-[5px] border-r-[5px] rounded-tr-xl",
-                  "bottom-0 left-0 border-b-[5px] border-l-[5px] rounded-bl-xl",
-                  "bottom-0 right-0 border-b-[5px] border-r-[5px] rounded-br-xl",
-                ].map((cls, i) => (
-                  <div key={i} className={`absolute w-8 h-8 border-amber-300/80 ${cls}`} />
-                ))}
-                <motion.div
-                  animate={{ top: ["8%", "92%"], opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
-                  className="absolute left-0 right-0 h-[2px] bg-amber-200 shadow-[0_0_14px_rgba(246,190,90,1)]"
-                />
-              </div>
-            )}
+            <div className="relative w-[58%] h-[58%]">
+              {[
+                "top-0 left-0 border-t-[5px] border-l-[5px] rounded-tl-xl",
+                "top-0 right-0 border-t-[5px] border-r-[5px] rounded-tr-xl",
+                "bottom-0 left-0 border-b-[5px] border-l-[5px] rounded-bl-xl",
+                "bottom-0 right-0 border-b-[5px] border-r-[5px] rounded-br-xl",
+              ].map((cls, i) => (
+                <div key={i} className={`absolute w-8 h-8 border-amber-300/80 ${cls}`} />
+              ))}
+              <motion.div
+                animate={{ top: ["8%", "92%"], opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                className="absolute left-0 right-0 h-[2px] bg-amber-200 shadow-[0_0_14px_rgba(246,190,90,1)]"
+              />
+            </div>
           </div>
         </div>
       </div>
