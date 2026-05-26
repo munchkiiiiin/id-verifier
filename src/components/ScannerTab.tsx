@@ -82,10 +82,16 @@ export function ScannerTab() {
   }, [fetchEmployeeByToken, isLoaded]);
 
   useEffect(() => {
+    // Wait until employees state is loaded (so fetchEmployeeByToken works)
     if (handledInitialTokenRef.current || typeof window === "undefined") return;
 
     const initialToken = new URL(window.location.href).searchParams.get("token");
     if (!initialToken) return;
+
+    if (!isLoaded) {
+      // Defer until isLoaded is true — the effect will re-run when isLoaded changes
+      return;
+    }
 
     console.debug("Initial token from URL:", initialToken);
     handledInitialTokenRef.current = true;
@@ -97,7 +103,7 @@ export function ScannerTab() {
         setIsProcessing(false);
       }
     })();
-  }, [resolveToken]);
+  }, [resolveToken, isLoaded]);
 
   /* ── Live camera (debounced) ────────────────────────────────── */
   const handleLiveScan = (raw: string) => {
