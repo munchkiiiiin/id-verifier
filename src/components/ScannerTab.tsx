@@ -83,7 +83,14 @@ export function ScannerTab() {
     if (!initialToken) return;
 
     handledInitialTokenRef.current = true;
-    resolveToken(initialToken);
+    (async () => {
+      setIsProcessing(true);
+      try {
+        await resolveToken(initialToken);
+      } finally {
+        setIsProcessing(false);
+      }
+    })();
   }, [resolveToken]);
 
   /* ── Live camera (debounced) ────────────────────────────────── */
