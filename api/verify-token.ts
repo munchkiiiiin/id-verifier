@@ -70,36 +70,25 @@ export default async function handler(req: any, res: any) {
   const ip = Array.isArray(forwarded) ? forwarded[0] : (String(forwarded ?? req.socket?.remoteAddress ?? 'unknown'));
 
   // Prefer Upstash-backed limiter when configured
-  if (upstashConfigured()) {
-    try {
-      const key = `rl:${ip}`;
-      const count = await upstashIncr(key);
-      if (count === null) throw new Error('upstash_incr_failed');
-      if (count === 1) await upstashExpire(key, RATE_LIMIT_WINDOW_SECONDS);
-      if (count > RATE_LIMIT_MAX) {
-        const ttl = await upstashTtl(key) || RATE_LIMIT_WINDOW_SECONDS;
-        res.setHeader('Retry-After', String(ttl));
-        return res.status(429).json({ employee: null, error: 'Rate limit exceeded' } satisfies ApiResponse);
-      }
-    } catch (err) {
-      console.warn('Upstash limiter failed, falling back to in-memory limiter', err?.message ?? err);
-      // continue to in-memory fallback
-    }
+  // Require Upstash for rate limiting in production; do not fall back to local memory
+  if (!upstashConfigured()) {
+    console.error('verify-token: Upstash rate limiter not configured');
+    return res.status(500).json({ employee: null, error: 'Rate limiter not configured' } satisfies ApiResponse);
   }
 
-  // In-memory best-effort fallback
-  const now = Date.now();
-  const entry = ipCounters.get(ip);
-  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_SECONDS * 1000) {
-    ipCounters.set(ip, { count: 1, windowStart: now });
-  } else {
-    entry.count += 1;
-    ipCounters.set(ip, entry);
-    if (entry.count > RATE_LIMIT_MAX) {
-      const retryAfter = Math.ceil((entry.windowStart + RATE_LIMIT_WINDOW_SECONDS * 1000 - now) / 1000);
-      res.setHeader('Retry-After', String(retryAfter));
+  try {
+    const key = `rl:${ip}`;
+    const count = await upstashIncr(key);
+    if (count === null) throw new Error('upstash_incr_failed');
+    if (count === 1) await upstashExpire(key, RATE_LIMIT_WINDOW_SECONDS);
+    if (count > RATE_LIMIT_MAX) {
+      const ttl = await upstashTtl(key) || RATE_LIMIT_WINDOW_SECONDS;
+      res.setHeader('Retry-After', String(ttl));
       return res.status(429).json({ employee: null, error: 'Rate limit exceeded' } satisfies ApiResponse);
     }
+  } catch (err) {
+    console.error('verify-token: Upstash limiter error', err?.message ?? err);
+    return res.status(502).json({ employee: null, error: 'Rate limiter error' } satisfies ApiResponse);
   }
 
   const rawToken = Array.isArray(req.query?.token) ? req.query.token[0] : req.query?.token;
