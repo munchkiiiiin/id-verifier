@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { useEmployees, Employee } from "../hooks/useEmployees";
 import { format, isBefore, startOfDay, parseISO } from "date-fns";
@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, AlertTriangle, Upload, Camera, Trash2 } from "lu
 import { cn } from "../lib/utils";
 import jsQR from "jsqr";
 import { motion, AnimatePresence } from "motion/react";
+import { extractTokenFromQrValue } from "../lib/qr";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 type ScanStatus = "valid" | "expired" | "not_found" | "invalid_qr";
@@ -49,6 +50,7 @@ export function ScannerTab() {
   const scannerRef                        = useRef<HTMLDivElement>(null);
   const lastScannedRef                    = useRef<string>("");
   const debounceRef                       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handledInitialTokenRef            = useRef(false);
 
   /* ── Push result to log ─────────────────────────────────────── */
   const pushLog = (entry: Omit<LogEntry, "id" | "timestamp">) => {
@@ -61,19 +63,28 @@ export function ScannerTab() {
   /* ── Resolve token ──────────────────────────────────────────── */
   const resolveToken = useCallback(async (raw: string) => {
     if (!raw || !isLoaded) return;
-    let token = raw;
-    try { const p = JSON.parse(raw); if (p.token) token = p.token; else if (p.id) token = p.id; } catch {}
-    token = token.trim();
+    let token = extractTokenFromQrValue(raw);
+    try { const p = JSON.parse(raw); if (p.token) token = String(p.token).trim(); else if (p.id) token = String(p.id).trim(); } catch {}
     try {
       const employee = await fetchEmployeeByToken(token);
       if (employee) {
         const expired = isBefore(startOfDay(parseISO(employee.expiryDate)), startOfDay(new Date()));
-        pushLog({ status: expired ? "expired" : "valid", employee });
+        pushLog({ status: expired ? "expired" : "valid", employee, scannedToken: token });
       } else {
         pushLog({ status: "not_found", scannedToken: token });
       }
     } catch { pushLog({ status: "invalid_qr" }); }
   }, [fetchEmployeeByToken, isLoaded]);
+
+  useEffect(() => {
+    if (handledInitialTokenRef.current || typeof window === "undefined") return;
+
+    const initialToken = new URL(window.location.href).searchParams.get("token");
+    if (!initialToken) return;
+
+    handledInitialTokenRef.current = true;
+    resolveToken(initialToken);
+  }, [resolveToken]);
 
   /* ── Live camera (debounced) ────────────────────────────────── */
   const handleLiveScan = (raw: string) => {
@@ -370,6 +381,12 @@ function LogRow({ entry }: { entry: LogEntry }) {
                 <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Scanned At</p>
                 <p className="text-xs text-white/45 font-mono">{format(entry.timestamp, "MMMM d, yyyy — h:mm:ss a")}</p>
               </div>
+              {entry.scannedToken && (
+                <div className="col-span-2">
+                  <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Token</p>
+                  <p className="text-xs text-white/45 font-mono break-all">{entry.scannedToken}</p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
