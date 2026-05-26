@@ -1,5 +1,12 @@
+const DEFAULT_APP_ORIGIN = "https://id-verifier-black.vercel.app";
+
+function getAppOrigin(): string {
+  const configuredOrigin = import.meta.env.VITE_APP_ORIGIN?.trim();
+  return configuredOrigin || DEFAULT_APP_ORIGIN;
+}
+
 export function buildEmployeeQrValue(token: string): string {
-  return `${window.location.origin}/?token=${encodeURIComponent(token)}`;
+  return `${getAppOrigin()}/?token=${encodeURIComponent(token)}`;
 }
 
 export function extractTokenFromQrValue(raw: string): string {

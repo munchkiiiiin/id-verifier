@@ -29,6 +29,7 @@ ID Verifier is a Vite + React app that uses Supabase for authentication and empl
    ```env
    VITE_SUPABASE_URL=https://your-project-ref.supabase.co
    VITE_SUPABASE_ANON_KEY=your_supabase_publishable_or_anon_key
+   VITE_APP_ORIGIN=https://id-verifier-black.vercel.app
    ```
 
 4. Start the app:
@@ -56,6 +57,7 @@ Set these environment variables in Vercel:
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_publishable_or_anon_key
+VITE_APP_ORIGIN=https://id-verifier-black.vercel.app
 ```
 
 Build command:
