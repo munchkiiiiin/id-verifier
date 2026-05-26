@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { QRCodeCanvas } from "qrcode.react";
 import { format, parseISO, isBefore, startOfDay, addYears } from "date-fns";
 import { cn } from "../lib/utils";
+import { buildEmployeeQrValue } from "../lib/qr";
 import {
   Users, Plus, Trash2, QrCode, X,
   LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail
@@ -382,11 +383,15 @@ function QRModal({ employee, onClose }: { employee: Employee; onClose: () => voi
         >
           <QRCodeCanvas
             id="qr-code-canvas"
-            value={employee.id}
+            value={buildEmployeeQrValue(employee.id)}
             size={Math.min(180, window.innerWidth * 0.45)}
             level="M"
           />
         </div>
+
+        <p className="text-center text-xs text-white/35 leading-relaxed mb-5">
+          Scan with your phone camera to open the verification page in a browser.
+        </p>
 
         {/* Expiry */}
         <p className="text-fluid-xs text-white/30 mb-5">
