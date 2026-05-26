@@ -30,6 +30,36 @@ export function useEmployees() {
   const sortEmployees = (items: Employee[]) =>
     [...items].sort((left, right) => left.name.localeCompare(right.name));
 
+  const assertEmployeeCodeAvailable = async (employeeCode: string, excludeId?: string) => {
+    const normalizedEmployeeCode = employeeCode.trim();
+
+    if (!/^\d+$/.test(normalizedEmployeeCode)) {
+      throw new Error("Employee ID must contain numbers only.");
+    }
+
+    let query = supabase
+      .from("employees")
+      .select("id")
+      .eq("employee_code", normalizedEmployeeCode)
+      .limit(1);
+
+    if (excludeId) {
+      query = query.neq("id", excludeId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    if ((data ?? []).length > 0) {
+      throw new Error(`Employee ID ${normalizedEmployeeCode} is already in use.`);
+    }
+
+    return normalizedEmployeeCode;
+  };
+
   const loadEmployees = async () => {
     const { data, error } = await supabase
       .from("employees")
@@ -104,10 +134,11 @@ export function useEmployees() {
   }, [user, isAdmin]);
 
   const addEmployee = async (employee: Employee) => {
+    const employeeCode = await assertEmployeeCodeAvailable(employee.employeeCode);
     const now = new Date().toISOString();
     const { error } = await supabase.from("employees").insert({
       id: employee.id,
-      employee_code: employee.employeeCode,
+      employee_code: employeeCode,
       name: employee.name,
       department: employee.department,
       expiry_date: employee.expiryDate,
@@ -132,10 +163,11 @@ export function useEmployees() {
   };
 
   const updateEmployee = async (employee: Employee) => {
+    const employeeCode = await assertEmployeeCodeAvailable(employee.employeeCode, employee.id);
     const { error } = await supabase
       .from("employees")
       .update({
-        employee_code: employee.employeeCode,
+        employee_code: employeeCode,
         name: employee.name,
         department: employee.department,
         expiry_date: employee.expiryDate,

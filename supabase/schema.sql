@@ -13,6 +13,9 @@ create table if not exists public.employees (
   updated_at timestamptz not null default now()
 );
 
+create unique index if not exists employees_employee_code_key
+  on public.employees (employee_code);
+
 create table if not exists public.users (
   id uuid primary key,
   email text not null,

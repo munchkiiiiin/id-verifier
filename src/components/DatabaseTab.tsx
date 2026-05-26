@@ -11,12 +11,51 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
+const EMPLOYEE_CODE_START = 520601;
+
+function normalizeEmployeeCode(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function getNextEmployeeCode(employees: Employee[]): string {
+  const usedCodes = new Set(
+    employees
+      .map((employee) => Number.parseInt(employee.employeeCode, 10))
+      .filter((code) => Number.isFinite(code))
+  );
+
+  let candidate = EMPLOYEE_CODE_START;
+
+  while (usedCodes.has(candidate)) {
+    candidate += 1;
+  }
+
+  return String(candidate);
+}
+
+function isEmployeeCodeInUse(employees: Employee[], employeeCode: string, currentId?: string): boolean {
+  return employees.some(
+    (employee) => employee.employeeCode === employeeCode && employee.id !== currentId
+  );
+}
+
 /* ─── DatabaseTab ───────────────────────────────────────────────── */
 export function DatabaseTab() {
   const { employees, addEmployee, removeEmployee, updateEmployee, accessDenied, errorMessage } = useEmployees();
   const { user, loginWithEmail, logout, loading, authLoading, error: authError } = useAuth();
   const [showQRFor,   setShowQRFor]   = useState<string | null>(null);
   const [showFormFor, setShowFormFor] = useState<Employee | "new" | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const openNewForm = () => {
+    setFormError(null);
+    setShowFormFor("new");
+  };
+
+  const openEditForm = (employee: Employee) => {
+    setFormError(null);
+    setShowFormFor(employee);
+  };
 
   /* Loading state */
   if (loading) {
@@ -91,7 +130,7 @@ export function DatabaseTab() {
           {/* Header actions */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowFormFor("new")}
+              onClick={openNewForm}
               className="flex items-center gap-1.5 glass glass-hover active:scale-95 transition-all rounded-xl px-3 py-2 text-white/70 hover:text-amber-300"
             >
               <Plus className="w-4 h-4" />
@@ -131,7 +170,7 @@ export function DatabaseTab() {
             <Users className="w-9 h-9 opacity-40" />
             <p className="text-fluid-sm">No records yet</p>
             <button
-              onClick={() => setShowFormFor("new")}
+              onClick={openNewForm}
               className="text-fluid-xs text-amber-300/60 hover:text-amber-300 transition-colors uppercase tracking-wider"
             >
               + Add first record
@@ -149,7 +188,7 @@ export function DatabaseTab() {
               >
                 <EmployeeCard
                   employee={emp}
-                  onEdit={() => setShowFormFor(emp)}
+                  onEdit={() => openEditForm(emp)}
                   onDelete={() => removeEmployee(emp.id)}
                   onShowQR={() => setShowQRFor(emp.id)}
                 />
@@ -169,12 +208,19 @@ export function DatabaseTab() {
         )}
         {showFormFor && (
           <EmployeeFormModal
+            employees={employees}
             employee={showFormFor === "new" ? null : showFormFor}
             onClose={() => setShowFormFor(null)}
+            errorMessage={formError}
             onSave={async (emp) => {
-              if (showFormFor === "new") await addEmployee(emp);
-              else await updateEmployee(emp);
-              setShowFormFor(null);
+              try {
+                if (showFormFor === "new") await addEmployee(emp);
+                else await updateEmployee(emp);
+                setFormError(null);
+                setShowFormFor(null);
+              } catch (error) {
+                setFormError(error instanceof Error ? error.message : "Failed to save employee record.");
+              }
             }}
           />
         )}
@@ -254,22 +300,48 @@ function EmployeeCard({
 
 /* ─── Employee Form Modal ───────────────────────────────────────── */
 function EmployeeFormModal({
-  employee, onClose, onSave
+  employee, employees, onClose, onSave, errorMessage
 }: {
   employee: Employee | null; onClose: () => void; onSave: (e: Employee) => void;
+  employees: Employee[]; errorMessage: string | null;
 }) {
   const [employeeCode, setEmployeeCode] = useState(
-    employee?.employeeCode || `EMP-${Math.floor(Math.random() * 10000).toString().padStart(4, "0")}`
+    employee?.employeeCode || getNextEmployeeCode(employees)
   );
   const [name,       setName]       = useState(employee?.name || "");
   const [department, setDepartment] = useState(employee?.department || "");
   const [expiryDate, setExpiryDate] = useState(
     employee?.expiryDate || format(addYears(new Date(), 1), "yyyy-MM-dd")
   );
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const currentError = errorMessage ?? localError;
 
   const handleSave = () => {
-    if (!name || !department || !expiryDate || !employeeCode) return;
-    onSave({ id: employee?.id || crypto.randomUUID(), employeeCode, name, department, expiryDate, isActive: true });
+    const normalizedEmployeeCode = normalizeEmployeeCode(employeeCode);
+
+    if (!normalizedEmployeeCode) {
+      setLocalError("Employee ID is required.");
+      return;
+    }
+
+    if (!/^\d+$/.test(normalizedEmployeeCode)) {
+      setLocalError("Employee ID must contain numbers only.");
+      return;
+    }
+
+    if (isEmployeeCodeInUse(employees, normalizedEmployeeCode, employee?.id)) {
+      setLocalError("That employee ID is already in use. Please use the suggested available ID.");
+      return;
+    }
+
+    if (!name || !department || !expiryDate) {
+      setLocalError("Please complete all required fields.");
+      return;
+    }
+
+    setLocalError(null);
+    onSave({ id: employee?.id || crypto.randomUUID(), employeeCode: normalizedEmployeeCode, name, department, expiryDate, isActive: true });
   };
 
   return (
@@ -293,19 +365,30 @@ function EmployeeFormModal({
 
         <div className="space-y-3 mb-5">
           {[
-            { label: "Employee ID", value: employeeCode, set: setEmployeeCode, placeholder: "EMP-1234", upper: true },
+            { label: "Employee ID", value: employeeCode, set: setEmployeeCode, placeholder: "5206XX", numeric: true },
             { label: "Full Name",   value: name,         set: setName,         placeholder: "John Doe"             },
             { label: "Department",  value: department,   set: setDepartment,   placeholder: "Engineering"          },
-          ].map(({ label, value, set, placeholder, upper }) => (
+          ].map(({ label, value, set, placeholder, numeric }) => (
             <div key={label}>
               <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
                 {label}
               </label>
               <input
                 value={value}
-                onChange={(e) => set(e.target.value)}
+                onChange={(e) => {
+                  if (numeric) {
+                    set(normalizeEmployeeCode(e.target.value));
+                    setLocalError(null);
+                    return;
+                  }
+
+                  set(e.target.value);
+                  setLocalError(null);
+                }}
                 placeholder={placeholder}
-                className={cn("input-base", upper && "uppercase")}
+                inputMode={numeric ? "numeric" : undefined}
+                pattern={numeric ? "[0-9]*" : undefined}
+                className={cn("input-base", numeric && "tabular-nums")}
               />
             </div>
           ))}
@@ -322,6 +405,12 @@ function EmployeeFormModal({
             />
           </div>
         </div>
+
+        {currentError && (
+          <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
+            <p className="text-rose-300 text-xs leading-relaxed">{currentError}</p>
+          </div>
+        )}
 
         <button onClick={handleSave} className="btn-primary">
           {employee ? "Save Changes" : "Create Record"}
