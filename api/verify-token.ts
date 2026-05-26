@@ -1,8 +1,51 @@
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Basic in-memory rate limiter (best-effort on serverless; for production use a shared store)
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+// Rate limiter configuration
+const RATE_LIMIT_WINDOW_SECONDS = 60; // 1 minute
 const RATE_LIMIT_MAX = 10; // requests per IP per window
+
+// Upstash REST helpers (no dependency required)
+function upstashConfigured() {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+async function upstashIncr(key: string): Promise<number | null> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  const endpoint = `${url.replace(/\/$/, "")}/incr/${encodeURIComponent(key)}`;
+  const resp = await fetch(endpoint, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  if (!resp.ok) return null;
+  const payload = await resp.json();
+  return typeof payload.result === "number" ? payload.result : Number(payload.result ?? payload);
+}
+
+async function upstashExpire(key: string, seconds: number): Promise<boolean> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return false;
+  const endpoint = `${url.replace(/\/$/, "")}/expire/${encodeURIComponent(key)}/${seconds}`;
+  const resp = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) return false;
+  const payload = await resp.json();
+  return Boolean(payload.result || payload === 1);
+}
+
+async function upstashTtl(key: string): Promise<number | null> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  const endpoint = `${url.replace(/\/$/, "")}/ttl/${encodeURIComponent(key)}`;
+  const resp = await fetch(endpoint, { method: "GET", headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) return null;
+  const payload = await resp.json();
+  return typeof payload.result === "number" ? payload.result : Number(payload.result ?? payload);
+}
+
+// In-memory fallback (best-effort)
 const ipCounters: Map<string, { count: number; windowStart: number }> = new Map();
 
 function redactToken(t: string) {
@@ -26,16 +69,34 @@ export default async function handler(req: any, res: any) {
   const forwarded = req.headers?.['x-forwarded-for'];
   const ip = Array.isArray(forwarded) ? forwarded[0] : (String(forwarded ?? req.socket?.remoteAddress ?? 'unknown'));
 
-  // Rate limit by IP (best-effort in serverless; for production use a shared store)
+  // Prefer Upstash-backed limiter when configured
+  if (upstashConfigured()) {
+    try {
+      const key = `rl:${ip}`;
+      const count = await upstashIncr(key);
+      if (count === null) throw new Error('upstash_incr_failed');
+      if (count === 1) await upstashExpire(key, RATE_LIMIT_WINDOW_SECONDS);
+      if (count > RATE_LIMIT_MAX) {
+        const ttl = await upstashTtl(key) || RATE_LIMIT_WINDOW_SECONDS;
+        res.setHeader('Retry-After', String(ttl));
+        return res.status(429).json({ employee: null, error: 'Rate limit exceeded' } satisfies ApiResponse);
+      }
+    } catch (err) {
+      console.warn('Upstash limiter failed, falling back to in-memory limiter', err?.message ?? err);
+      // continue to in-memory fallback
+    }
+  }
+
+  // In-memory best-effort fallback
   const now = Date.now();
   const entry = ipCounters.get(ip);
-  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_SECONDS * 1000) {
     ipCounters.set(ip, { count: 1, windowStart: now });
   } else {
     entry.count += 1;
     ipCounters.set(ip, entry);
     if (entry.count > RATE_LIMIT_MAX) {
-      const retryAfter = Math.ceil((entry.windowStart + RATE_LIMIT_WINDOW_MS - now) / 1000);
+      const retryAfter = Math.ceil((entry.windowStart + RATE_LIMIT_WINDOW_SECONDS * 1000 - now) / 1000);
       res.setHeader('Retry-After', String(retryAfter));
       return res.status(429).json({ employee: null, error: 'Rate limit exceeded' } satisfies ApiResponse);
     }
