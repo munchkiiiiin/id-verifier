@@ -45,6 +45,7 @@ export function ScannerTab() {
   const { fetchEmployeeByToken, isLoaded } = useEmployees();
   const [scanLog, setScanLog]             = useState<LogEntry[]>([]);
   const [lastFlash, setLastFlash]         = useState<ScanStatus | null>(null);
+  const [pendingInitialToken, setPendingInitialToken] = useState<string | null>(null);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
   const scannerRef                        = useRef<HTMLDivElement>(null);
   const lastScannedRef                    = useRef<string>("");
@@ -78,16 +79,26 @@ export function ScannerTab() {
   }, [fetchEmployeeByToken, isLoaded]);
 
   useEffect(() => {
-    if (handledInitialTokenRef.current || typeof window === "undefined") return;
+    if (handledInitialTokenRef.current || pendingInitialToken || typeof window === "undefined") return;
 
-    const initialToken = new URL(window.location.href).searchParams.get("token");
+    const currentUrl = new URL(window.location.href);
+    const initialToken = currentUrl.searchParams.get("token") ?? currentUrl.searchParams.get("id");
     if (!initialToken) return;
 
-    if (!isLoaded) return;
-
     handledInitialTokenRef.current = true;
-    resolveToken(initialToken);
-  }, [resolveToken, isLoaded]);
+    setPendingInitialToken(initialToken);
+
+    currentUrl.searchParams.delete("token");
+    currentUrl.searchParams.delete("id");
+    window.history.replaceState({}, "", `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
+  }, [pendingInitialToken]);
+
+  useEffect(() => {
+    if (!pendingInitialToken || !isLoaded) return;
+
+    void resolveToken(pendingInitialToken);
+    setPendingInitialToken(null);
+  }, [pendingInitialToken, resolveToken, isLoaded]);
 
   /* ── Live camera (debounced) ────────────────────────────────── */
   const handleLiveScan = (raw: string) => {
@@ -99,17 +110,32 @@ export function ScannerTab() {
   };
 
   /* ── Capture frame ──────────────────────────────────────────── */
-  const handleCaptureFrame = () => {
+  const handleCaptureFrame = useCallback((attempt = 0) => {
     const video = scannerRef.current?.querySelector("video");
-    if (!video) return;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (attempt < 5) {
+        requestAnimationFrame(() => handleCaptureFrame(attempt + 1));
+      }
+      return;
+    }
     const canvas = document.createElement("canvas");
     const ctx    = canvas.getContext("2d");
     if (!ctx) return;
     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
     const qr = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
-    if (qr) resolveToken(qr.data); else pushLog({ status: "invalid_qr" });
-  };
+    if (qr) {
+      resolveToken(qr.data);
+      return;
+    }
+
+    if (attempt < 5) {
+      requestAnimationFrame(() => handleCaptureFrame(attempt + 1));
+      return;
+    }
+
+    pushLog({ status: "invalid_qr" });
+  }, [resolveToken]);
 
   /* ── Image upload ───────────────────────────────────────────── */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
