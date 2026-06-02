@@ -2,16 +2,16 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { useEmployees, Employee } from "../hooks/useEmployees";
 import { format, isBefore, startOfDay, parseISO } from "date-fns";
-import { CheckCircle2, XCircle, AlertTriangle, Upload, Camera, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Upload, Camera, Trash2, Shield, Bell, Sun, Moon } from "lucide-react";
 import { cn } from "../lib/utils";
 import jsQR from "jsqr";
 import { motion, AnimatePresence } from "motion/react";
 import { extractTokenFromQrValue } from "../lib/qr";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
-type ScanStatus = "valid" | "expired" | "not_found" | "invalid_qr";
+export type ScanStatus = "valid" | "expired" | "not_found" | "invalid_qr";
 
-interface LogEntry {
+export interface LogEntry {
   id: string;
   status: ScanStatus;
   employee?: Employee;
@@ -20,7 +20,7 @@ interface LogEntry {
 }
 
 /* ─── Status config ─────────────────────────────────────────────── */
-const STATUS_CONFIG: Record<ScanStatus, {
+export const STATUS_CONFIG: Record<ScanStatus, {
   icon: React.FC<{ className?: string }>;
   label: string;
   dotColor: string;
@@ -41,9 +41,22 @@ const FLASH_BORDER: Record<ScanStatus, string> = {
 };
 
 /* ─── Main component ────────────────────────────────────────────── */
-export function ScannerTab() {
+export function ScannerTab({
+  scanLog,
+  onPushLog,
+  onClearLogs,
+  captureTrigger,
+  theme,
+  onToggleTheme
+}: {
+  scanLog: LogEntry[];
+  onPushLog: (entry: LogEntry) => void;
+  onClearLogs?: () => void;
+  captureTrigger?: number;
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
+}) {
   const { fetchEmployeeByToken, isLoaded } = useEmployees();
-  const [scanLog, setScanLog]             = useState<LogEntry[]>([]);
   const [lastFlash, setLastFlash]         = useState<ScanStatus | null>(null);
   const [pendingInitialToken, setPendingInitialToken] = useState<string | null>(null);
   const fileInputRef                      = useRef<HTMLInputElement>(null);
@@ -55,7 +68,7 @@ export function ScannerTab() {
   /* ── Push result to log ─────────────────────────────────────── */
   const pushLog = (entry: Omit<LogEntry, "id" | "timestamp">) => {
     const newEntry: LogEntry = { ...entry, id: crypto.randomUUID(), timestamp: new Date() };
-    setScanLog((prev) => [newEntry, ...prev].slice(0, 50));
+    onPushLog(newEntry);
     setLastFlash(entry.status);
     setTimeout(() => setLastFlash(null), 900);
   };
@@ -193,6 +206,13 @@ export function ScannerTab() {
     pushLog({ status: "invalid_qr" });
   }, [resolveToken]);
 
+  // Capture frame trigger from bottom navbar
+  useEffect(() => {
+    if (captureTrigger && captureTrigger > 0) {
+      handleCaptureFrame();
+    }
+  }, [captureTrigger, handleCaptureFrame]);
+
   /* ── Image upload ───────────────────────────────────────────── */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -220,25 +240,24 @@ export function ScannerTab() {
     <div className="flex flex-col md:flex-row h-full overflow-hidden">
 
       {/* Left Pane: Header, Scanner, and Actions */}
-      <div className="flex-shrink-0 flex flex-col items-center md:w-[380px] lg:w-[420px] md:h-full md:border-r md:border-brand-border md:justify-start md:py-6 overflow-y-auto">
+      <div className="flex-shrink-0 flex flex-col items-center md:w-[380px] lg:w-[420px] md:h-full md:border-r md:border-brand-border md:justify-start md:pb-6 overflow-y-auto">
         {/* ── Header ─────────────────────────────────────────────── */}
-        <header className="pt-safe flex-shrink-0 flex flex-col items-center px-5 pt-4 pb-2">
-          <p className="text-xs uppercase tracking-[0.25em] text-white/30 mb-0.5 font-medium">
-            Security Portal
-          </p>
-          <h1 className="serif italic text-3xl text-amber-100/90 leading-none">
-            Sentinel
-          </h1>
-          <div className="mt-2 flex items-center gap-2">
-            <motion.span
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 1.8, repeat: Infinity }}
-              className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"
-            />
-            <span className="text-xs text-white/40 uppercase tracking-widest font-medium">
-              Live — Ready to Scan
-            </span>
-          </div>
+        <header className="flex justify-between items-center px-6 h-16 w-full bg-black/20 border-b border-brand-border flex-shrink-0">
+          <button className="text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors">
+            <Shield className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-bold font-headline-md text-white tracking-wide">Sentinel</h1>
+          <button
+            onClick={onToggleTheme}
+            className="text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === "light" ? (
+              <Moon className="w-5 h-5" />
+            ) : (
+              <Sun className="w-5 h-5" />
+            )}
+          </button>
         </header>
 
         {/* ── Scanner viewport ────────────────────────────────────── */}
@@ -268,23 +287,23 @@ export function ScannerTab() {
             <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
               <motion.div
                 className="absolute inset-0"
-                animate={{ boxShadow: ["inset 0 0 30px rgba(246,190,90,0.04)", "inset 0 0 70px rgba(246,190,90,0.13)", "inset 0 0 30px rgba(246,190,90,0.04)"] }}
+                animate={{ boxShadow: ["inset 0 0 30px rgba(253,118,26,0.04)", "inset 0 0 70px rgba(253,118,26,0.13)", "inset 0 0 30px rgba(253,118,26,0.04)"] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
               />
               <div className="absolute inset-0 scanner-gradient opacity-25" />
-              <div className="relative w-[58%] h-[58%]">
+              <div className="relative w-[80%] h-[80%] rounded-lg">
                 {[
-                  "top-0 left-0 border-t-[5px] border-l-[5px] rounded-tl-xl",
-                  "top-0 right-0 border-t-[5px] border-r-[5px] rounded-tr-xl",
-                  "bottom-0 left-0 border-b-[5px] border-l-[5px] rounded-bl-xl",
-                  "bottom-0 right-0 border-b-[5px] border-r-[5px] rounded-br-xl",
+                  "top-0 left-0 border-t-[4px] border-l-[4px] rounded-tl-lg",
+                  "top-0 right-0 border-t-[4px] border-r-[4px] rounded-tr-lg",
+                  "bottom-0 left-0 border-b-[4px] border-l-[4px] rounded-bl-lg",
+                  "bottom-0 right-0 border-b-[4px] border-r-[4px] rounded-br-lg",
                 ].map((cls, i) => (
-                  <div key={i} className={`absolute w-8 h-8 border-amber-300/80 ${cls}`} />
+                  <div key={i} className={`absolute w-10 h-10 border-[#fd761a] ${cls}`} />
                 ))}
                 <motion.div
-                  animate={{ top: ["8%", "92%"], opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
-                  className="absolute left-0 right-0 h-[2px] bg-amber-200 shadow-[0_0_14px_rgba(246,190,90,1)]"
+                  animate={{ top: ["10%", "90%"], opacity: [0, 1, 1, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  className="absolute left-[5%] right-[5%] h-[2px] bg-[#fd761a] shadow-[0_0_10px_rgba(253,118,26,0.5)]"
                 />
               </div>
             </div>
@@ -292,24 +311,18 @@ export function ScannerTab() {
         </div>
 
         {/* ── Action Buttons ── */}
-        <div className="flex-shrink-0 px-4 pt-3 pb-3 grid grid-cols-2 gap-3 w-full max-w-[360px] md:pt-4">
+        <div className="flex-shrink-0 px-4 pt-3 pb-3 w-full max-w-[360px] md:pt-4">
           <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
 
-          {[
-            { icon: Upload, label: "Upload QR", action: () => fileInputRef.current?.click() },
-            { icon: Camera, label: "Capture",   action: handleCaptureFrame                   },
-          ].map(({ icon: Icon, label, action }) => (
-            <button
-              key={label}
-              onClick={action}
-              className="glass glass-hover active:scale-95 transition-all rounded-2xl py-4 flex items-center justify-center gap-2.5 group"
-            >
-              <Icon className="w-5 h-5 text-amber-300/60 group-hover:text-amber-300 transition-colors" />
-              <span className="text-sm font-semibold uppercase tracking-wider text-white/55 group-hover:text-white/80 transition-colors">
-                {label}
-              </span>
-            </button>
-          ))}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full bg-[#fd761a] border-b border-white/10 hover:bg-[#e06210] active:scale-[0.98] transition-all rounded-2xl py-4 flex items-center justify-center gap-2.5 text-white font-semibold shadow-md cursor-pointer"
+          >
+            <Upload className="w-5 h-5 text-white" />
+            <span className="text-sm font-semibold uppercase tracking-wider">
+              Upload QR / Image
+            </span>
+          </button>
         </div>
 
       </div>
@@ -326,9 +339,9 @@ export function ScannerTab() {
               <span className="text-xs text-white/25 font-mono">({scanLog.length})</span>
             )}
           </div>
-          {scanLog.length > 0 && (
+          {scanLog.length > 0 && onClearLogs && (
             <button
-              onClick={() => setScanLog([])}
+              onClick={() => onClearLogs()}
               className="flex items-center gap-1.5 text-xs text-white/25 hover:text-rose-400 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -389,37 +402,40 @@ function LogRow({ entry }: { entry: LogEntry }) {
       <button
         onClick={() => emp && setExpanded((v) => !v)}
         className={cn(
-          "w-full glass rounded-2xl px-4 py-3 flex items-center gap-3 border border-white/07 transition-colors text-left",
+          "w-full glass rounded-2xl p-4 flex items-center gap-3 border border-white/07 transition-colors text-left",
           emp ? "hover:border-white/14 active:scale-[0.99] cursor-pointer" : "cursor-default"
         )}
       >
-        <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", cfg.dotColor)} />
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-sm font-semibold text-white/90 truncate">
-              {emp ? emp.name : cfg.label}
-            </p>
-            {emp && (
-              <span className={cn("flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide", cfg.badgeCls)}>
-                {cfg.label}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            {emp && (
-              <>
-                <span className="text-xs text-white/35 font-mono">{emp.employeeCode}</span>
-                <span className="text-white/20 text-[9px]">•</span>
-                <span className="text-xs text-white/35">{emp.designation}</span>
-                <span className="text-white/20 text-[9px]">•</span>
-              </>
-            )}
-            <span className="text-xs text-white/30">{format(entry.timestamp, "h:mm:ss a")}</span>
-          </div>
+        {/* Left rounded icon circle */}
+        <div className={cn(
+          "w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center",
+          entry.status === "valid" 
+            ? "bg-emerald-500/10 text-emerald-400" 
+            : entry.status === "expired" 
+              ? "bg-rose-500/10 text-rose-400" 
+              : "bg-amber-500/10 text-amber-400"
+        )}>
+          <Icon className="w-5 h-5" />
         </div>
 
-        <Icon className={cn("w-4 h-4 flex-shrink-0", cfg.textColor)} />
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <span className="font-semibold text-white/95 text-sm truncate block">
+            {emp ? emp.name : cfg.label}
+          </span>
+          <span className="text-xs text-white/35 font-mono mt-0.5 truncate block">
+            {emp ? `ID: ${emp.employeeCode} • ${emp.designation} • ` : ""}
+            {format(entry.timestamp, "h:mm:ss a")}
+          </span>
+        </div>
+
+        {/* Right status badge */}
+        <span className={cn(
+          "flex-shrink-0 px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wide",
+          cfg.badgeCls
+        )}>
+          {cfg.label}
+        </span>
       </button>
 
       {/* Expanded detail */}

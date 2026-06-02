@@ -7,7 +7,7 @@ import { cn } from "../lib/utils";
 import { buildEmployeeQrValue } from "../lib/qr";
 import {
   Users, Plus, Trash2, QrCode, X,
-  LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail
+  LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail, Sun, Moon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -40,7 +40,13 @@ function isEmployeeCodeInUse(employees: Employee[], employeeCode: string, curren
 }
 
 /* ─── DatabaseTab ───────────────────────────────────────────────── */
-export function DatabaseTab() {
+export function DatabaseTab({
+  theme,
+  onToggleTheme
+}: {
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
+}) {
   const { employees, addEmployee, removeEmployee, updateEmployee, accessDenied, errorMessage } = useEmployees();
   const { user, loginWithEmail, logout, loading, authLoading, error: authError } = useAuth();
   const [showQRFor,   setShowQRFor]   = useState<string | null>(null);
@@ -171,8 +177,19 @@ export function DatabaseTab() {
           {/* Header actions */}
           <div className="flex items-center gap-2">
             <button
+              onClick={onToggleTheme}
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="btn-icon hover:text-white cursor-pointer"
+            >
+              {theme === "light" ? (
+                <Moon className="w-4 h-4" />
+              ) : (
+                <Sun className="w-4 h-4" />
+              )}
+            </button>
+            <button
               onClick={openNewForm}
-              className="flex items-center gap-1.5 glass glass-hover active:scale-95 transition-all rounded-xl px-3 py-2 text-white/70 hover:text-amber-300"
+              className="flex items-center gap-1.5 glass glass-hover active:scale-95 transition-all rounded-xl px-3 py-2 text-white/70 hover:text-amber-300 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span className="text-fluid-xs font-semibold uppercase tracking-wider">Add</span>
@@ -180,7 +197,7 @@ export function DatabaseTab() {
             <button
               onClick={logout}
               title="Logout"
-              className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20"
+              className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>

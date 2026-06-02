@@ -1,20 +1,61 @@
-import { useState, type FC } from "react";
-import { ScanLine, Database, ShieldCheck } from "lucide-react";
-import { ScannerTab } from "./components/ScannerTab";
+import { useState, useEffect } from "react";
+import { Home, QrCode, ClipboardList, Database, Camera } from "lucide-react";
+import { HomeTab } from "./components/HomeTab";
+import { ScannerTab, LogEntry } from "./components/ScannerTab";
+import { ReportsTab } from "./components/ReportsTab";
 import { DatabaseTab } from "./components/DatabaseTab";
 import { cn } from "./lib/utils";
 import { motion } from "motion/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
-type Tab = "scanner" | "database";
-
-const tabs: { id: Tab; icon: FC<{ className?: string }>; label: string }[] = [
-  { id: "scanner",  icon: ScanLine,  label: "Scan"  },
-  { id: "database", icon: Database,  label: "Admin" },
-];
+type Tab = "home" | "scanner" | "reports" | "database";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("scanner");
+  const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [captureTrigger, setCaptureTrigger] = useState(0);
+
+  // Theme state persisted to localStorage
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("sentinel_theme") as "dark" | "light") || "dark";
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+      root.classList.remove("light");
+    } else {
+      root.classList.add("light");
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("sentinel_theme", theme);
+  }, [theme]);
+
+  // Lifted Scan Logs state with localStorage persistence
+  const [scanLog, setScanLog] = useState<LogEntry[]>(() => {
+    try {
+      const stored = localStorage.getItem("sentinel_scan_log");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.map((item: any) => ({
+          ...item,
+          timestamp: new Date(item.timestamp)
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to load scan log from localStorage:", e);
+    }
+    return [];
+  });
+
+  // Save scan logs to localStorage on changes
+  useEffect(() => {
+    try {
+      localStorage.setItem("sentinel_scan_log", JSON.stringify(scanLog));
+    } catch (e) {
+      console.error("Failed to save scan log to localStorage:", e);
+    }
+  }, [scanLog]);
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-gradient-to-br from-brand-bg-grad-start to-brand-bg-grad-end relative overflow-hidden">
@@ -38,58 +79,166 @@ export default function App() {
 
       {/* ── Main content area ───────────────────────────────────── */}
       <main className="flex-1 overflow-hidden relative">
-        {tabs.map(({ id }) => (
-          <div
-            key={id}
-            className={cn(
-              "absolute inset-0 transition-opacity duration-300",
-              activeTab === id ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
-            )}
-          >
-            {activeTab === id && (
-              id === "scanner" ? <ScannerTab /> : <DatabaseTab />
-            )}
-          </div>
-        ))}
+        {/* 1. Home Tab */}
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            activeTab === "home" ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+          )}
+        >
+          {activeTab === "home" && (
+            <HomeTab
+              onStartScan={() => setActiveTab("scanner")}
+              theme={theme}
+              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            />
+          )}
+        </div>
+
+        {/* 2. Scanner Tab */}
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            activeTab === "scanner" ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+          )}
+        >
+          {activeTab === "scanner" && (
+            <ScannerTab
+              scanLog={scanLog}
+              onPushLog={(entry) => setScanLog((prev) => [entry, ...prev].slice(0, 50))}
+              onClearLogs={() => setScanLog([])}
+              captureTrigger={captureTrigger}
+              theme={theme}
+              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            />
+          )}
+        </div>
+
+        {/* 3. Reports Tab */}
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            activeTab === "reports" ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+          )}
+        >
+          {activeTab === "reports" && (
+            <ReportsTab
+              scanLog={scanLog}
+              onClearLogs={() => setScanLog([])}
+              theme={theme}
+              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            />
+          )}
+        </div>
+
+        {/* 4. Admin Database Tab */}
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            activeTab === "database" ? "opacity-100 z-10" : "opacity-0 pointer-events-none z-0"
+          )}
+        >
+          {activeTab === "database" && (
+            <DatabaseTab
+              theme={theme}
+              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            />
+          )}
+        </div>
       </main>
 
       {/* ── Bottom nav bar ──────────────────────────────────────── */}
       <nav
-        className="relative z-20 glass border-t border-brand-border flex justify-around items-center pb-safe"
-        style={{ paddingTop: "0.65rem", paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}
+        className="relative z-20 glass border-t border-brand-border h-20 flex justify-around items-center px-2 pb-safe"
+        style={{ paddingBottom: "max(0.2rem, env(safe-area-inset-bottom, 0px))" }}
       >
-        {tabs.map(({ id, icon: Icon, label }) => {
-          const active = activeTab === id;
-          return (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={cn(
-                "relative flex flex-col items-center justify-center gap-1 px-8 py-1 rounded-2xl transition-colors",
-                active ? "text-accent" : "text-white/35 hover:text-white/60"
-              )}
-              style={{ minWidth: "4.5rem" }}
-            >
-              {active && (
-                <motion.div
-                  layoutId="tab-indicator"
-                  className="absolute inset-0 rounded-2xl"
-                  style={{ background: "rgba(246,190,90,0.08)" }}
-                  transition={{ type: "spring", stiffness: 400, damping: 35 }}
+        {/* Tab 1: Home */}
+        <button
+          onClick={() => setActiveTab("home")}
+          className={cn(
+            "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
+            activeTab === "home" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
+          )}
+        >
+          <Home className="w-5 h-5" />
+          <span className="text-[10px] uppercase tracking-widest font-semibold">Home</span>
+        </button>
+
+        {/* Tab 2: Scanner */}
+        <button
+          onClick={() => setActiveTab("scanner")}
+          className={cn(
+            "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
+            activeTab === "scanner" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
+          )}
+        >
+          <QrCode className="w-5 h-5" />
+          <span className="text-[10px] uppercase tracking-widest font-semibold">Scanner</span>
+        </button>
+
+        {/* Center Button: Elevated Capture Action */}
+        <div className="relative w-20 h-full flex justify-center items-center">
+          <motion.button
+            whileHover={{ scale: 1.08, y: -6 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => {
+              setActiveTab("scanner");
+              setCaptureTrigger((prev) => prev + 1);
+            }}
+            className="absolute -top-6 w-16 h-16 bg-[#fd761a] hover:bg-[#e06210] rounded-full flex items-center justify-center text-white shadow-[0_6px_24px_rgba(253,118,26,0.45)] border-4 border-brand-bg-deep cursor-pointer transition-colors duration-200"
+          >
+            <div className="relative w-full h-full flex items-center justify-center">
+              {/* Camera Icon - shifted higher to balance the arched text */}
+              <motion.div
+                animate={activeTab === "scanner" ? { rotate: [0, -10, 10, 0] } : {}}
+                transition={{ repeat: Infinity, repeatDelay: 5, duration: 0.5 }}
+                className="absolute top-[18%] flex items-center justify-center"
+              >
+                <Camera className="w-6.5 h-6.5 text-white" />
+              </motion.div>
+
+              {/* Arched text following bottom curve */}
+              <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none">
+                <path
+                  id="textPath-capture"
+                  d="M 14,50 A 36,36 0 0,0 86,50"
+                  fill="none"
+                  stroke="none"
                 />
-              )}
-              <div className="relative z-10 flex flex-col items-center gap-0.5">
-                <Icon className="w-5 h-5" />
-                <span
-                  className="font-semibold uppercase tracking-widest"
-                  style={{ fontSize: "clamp(0.55rem, 1.6vw, 0.65rem)" }}
-                >
-                  {label}
-                </span>
-              </div>
-            </button>
-          );
-        })}
+                <text className="fill-white font-bold text-[9px] tracking-[0.28em]">
+                  <textPath href="#textPath-capture" startOffset="50%" textAnchor="middle">
+                    CAPTURE
+                  </textPath>
+                </text>
+              </svg>
+            </div>
+          </motion.button>
+        </div>
+
+        {/* Tab 3: Reports */}
+        <button
+          onClick={() => setActiveTab("reports")}
+          className={cn(
+            "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
+            activeTab === "reports" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
+          )}
+        >
+          <ClipboardList className="w-5 h-5" />
+          <span className="text-[10px] uppercase tracking-widest font-semibold">Reports</span>
+        </button>
+
+        {/* Tab 4: Admin (Database) */}
+        <button
+          onClick={() => setActiveTab("database")}
+          className={cn(
+            "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
+            activeTab === "database" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
+          )}
+        >
+          <Database className="w-5 h-5" />
+          <span className="text-[10px] uppercase tracking-widest font-semibold">Admin</span>
+        </button>
+
       </nav>
       <SpeedInsights />
     </div>

@@ -1,34 +1,94 @@
 @import "tailwindcss";
 
+:root {
+  /* Default: Dark Theme */
+  --color-brand-bg-deep-val:       #07070A;
+  --color-brand-bg-dark-val:       #0A0A0E;
+  --color-brand-bg-grad-start-val: #0C0C12;
+  --color-brand-bg-grad-end-val:   #07070A;
+  --color-brand-border-val:        rgba(255, 255, 255, 0.06);
+
+  /* Accent */
+  --color-accent-val:              #F6BE5A;
+  --color-accent-dim-val:          rgba(246, 190, 90, 0.15);
+  --color-accent-glow-val:         rgba(246, 190, 90, 0.35);
+
+  /* Glass */
+  --color-glass-border-val:        rgba(255, 255, 255, 0.08);
+  --color-glass-bg-val:            rgba(255, 255, 255, 0.03);
+  --color-glass-bg-hover-val:      rgba(255, 255, 255, 0.06);
+
+  /* Status */
+  --color-status-valid-text-val:   #34D399;
+  --color-status-valid-bg-val:     rgba(52, 211, 153, 0.10);
+  --color-status-valid-border-val: rgba(52, 211, 153, 0.30);
+
+  --color-status-expired-text-val:   #F87171;
+  --color-status-expired-bg-val:     rgba(248, 113, 113, 0.10);
+  --color-status-expired-border-val: rgba(248, 113, 113, 0.30);
+
+  --text-main: #E5E7EB;
+}
+
+.light {
+  /* Light Theme */
+  --color-brand-bg-deep-val:       #F8F9FF;
+  --color-brand-bg-dark-val:       #EFF4FF;
+  --color-brand-bg-grad-start-val: #F0F4FF;
+  --color-brand-bg-grad-end-val:   #E5EEFF;
+  --color-brand-border-val:        rgba(11, 28, 48, 0.08);
+
+  /* Accent */
+  --color-accent-val:              #F97316; /* Orange */
+  --color-accent-dim-val:          rgba(249, 115, 22, 0.15);
+  --color-accent-glow-val:         rgba(249, 115, 22, 0.25);
+
+  /* Glass */
+  --color-glass-border-val:        rgba(11, 28, 48, 0.08);
+  --color-glass-bg-val:            rgba(255, 255, 255, 0.65);
+  --color-glass-bg-hover-val:      rgba(255, 255, 255, 0.85);
+
+  /* Status */
+  --color-status-valid-text-val:   #047857;
+  --color-status-valid-bg-val:     rgba(52, 211, 153, 0.12);
+  --color-status-valid-border-val: rgba(52, 211, 153, 0.35);
+
+  --color-status-expired-text-val:   #B91C1C;
+  --color-status-expired-bg-val:     rgba(248, 113, 113, 0.12);
+  --color-status-expired-border-val: rgba(248, 113, 113, 0.35);
+
+  --text-main: #0B1C30;
+}
+
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 
-  /* Core palette */
-  --color-brand-bg-deep:       #07070A;
-  --color-brand-bg-dark:       #0A0A0E;
-  --color-brand-bg-grad-start: #0C0C12;
-  --color-brand-bg-grad-end:   #07070A;
-  --color-brand-border:        rgba(255, 255, 255, 0.06);
+  /* Core palette from variables */
+  --color-brand-bg-deep:       var(--color-brand-bg-deep-val);
+  --color-brand-bg-dark:       var(--color-brand-bg-dark-val);
+  --color-brand-bg-grad-start: var(--color-brand-bg-grad-start-val);
+  --color-brand-bg-grad-end:   var(--color-brand-bg-grad-end-val);
+  --color-brand-border:        var(--color-brand-border-val);
 
   /* Accent */
-  --color-accent:              #F6BE5A;
-  --color-accent-dim:          rgba(246, 190, 90, 0.15);
-  --color-accent-glow:         rgba(246, 190, 90, 0.35);
+  --color-accent:              var(--color-accent-val);
+  --color-accent-dim:          var(--color-accent-dim-val);
+  --color-accent-glow:         var(--color-accent-glow-val);
 
   /* Glass */
-  --color-glass-border:        rgba(255, 255, 255, 0.08);
-  --color-glass-bg:            rgba(255, 255, 255, 0.03);
-  --color-glass-bg-hover:      rgba(255, 255, 255, 0.06);
+  --color-glass-border:        var(--color-glass-border-val);
+  --color-glass-bg:            var(--color-glass-bg-val);
+  --color-glass-bg-hover:      var(--color-glass-bg-hover-val);
 
   /* Status */
-  --color-status-valid-text:   #34D399;
-  --color-status-valid-bg:     rgba(52, 211, 153, 0.10);
-  --color-status-valid-border: rgba(52, 211, 153, 0.30);
+  --color-status-valid-text:   var(--color-status-valid-text-val);
+  --color-status-valid-bg:     var(--color-status-valid-bg-val);
+  --color-status-valid-border: var(--color-status-valid-border-val);
 
-  --color-status-expired-text:   #F87171;
-  --color-status-expired-bg:     rgba(248, 113, 113, 0.10);
-  --color-status-expired-border: rgba(248, 113, 113, 0.30);
+  --color-status-expired-text:   var(--color-status-expired-text-val);
+  --color-status-expired-bg:     var(--color-status-expired-bg-val);
+  --color-status-expired-border: var(--color-status-expired-border-val);
 
   /* Fluid spacing scale */
   --space-safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -42,20 +102,21 @@
 }
 
 html {
-  /* Fluid base font: 14px on tiny screens → 16px on 390px+ */
   font-size: clamp(13px, 3.5vw, 16px);
   height: 100%;
   overflow: hidden;
+  transition: background-color 0.3s ease;
 }
 
 body {
   height: 100%;
   margin: 0;
   background-color: var(--color-brand-bg-deep);
-  color: #E5E7EB;
+  color: var(--text-main);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -74,6 +135,7 @@ body {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--color-glass-border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
   }
   .glass-hover:hover {
     background: var(--color-glass-bg-hover);
@@ -110,8 +172,6 @@ body {
   .pt-safe  { padding-top:    max(0.5rem, var(--space-safe-top)); }
   .pb-safe  { padding-bottom: max(0.5rem, var(--space-safe-bottom)); }
 
-
-
   /* Fluid text helpers */
   .text-fluid-xs   { font-size: clamp(0.6rem,  1.8vw, 0.7rem); }
   .text-fluid-sm   { font-size: clamp(0.75rem, 2.2vw, 0.875rem); }
@@ -135,9 +195,9 @@ body {
     border-radius: 0.875rem;
     padding: 0.75rem 1rem;
     font-size: clamp(0.8rem, 2.5vw, 0.9rem);
-    color: #fff;
+    color: var(--text-main);
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background-color 0.2s;
     font-family: var(--font-sans);
   }
   .input-base:focus {
@@ -156,11 +216,11 @@ body {
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #fff;
+    color: var(--text-main);
     background: rgba(255,255,255,0.07);
     border: 1px solid rgba(255,255,255,0.10);
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
+    transition: background 0.2s, transform 0.1s, color 0.2s, border-color 0.2s;
   }
   .btn-primary:hover  { background: rgba(255,255,255,0.12); }
   .btn-primary:active { transform: scale(0.97); background: rgba(255,255,255,0.18); }
@@ -176,7 +236,7 @@ body {
     background: rgba(255,255,255,0.05);
     border: 1px solid rgba(255,255,255,0.08);
     cursor: pointer;
-    transition: background 0.2s, color 0.2s;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
     color: rgba(255,255,255,0.4);
   }
   .btn-icon:hover  { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.9); }
@@ -187,3 +247,157 @@ body {
 ::-webkit-scrollbar          { width: 3px; }
 ::-webkit-scrollbar-track    { background: transparent; }
 ::-webkit-scrollbar-thumb    { background: rgba(255,255,255,0.12); border-radius: 999px; }
+
+/* ─── Light Mode Overrides ────────────────────────────────────────── */
+.light body {
+  color: #0B1C30;
+}
+
+/* Overriding white text utilities to dark blue text for light theme */
+.light .text-white {
+  color: #0B1C30 !important;
+}
+.light .text-white\/95 {
+  color: rgba(11, 28, 48, 0.95) !important;
+}
+.light .text-white\/90 {
+  color: rgba(11, 28, 48, 0.90) !important;
+}
+.light .text-white\/85 {
+  color: rgba(11, 28, 48, 0.85) !important;
+}
+.light .text-white\/80 {
+  color: rgba(11, 28, 48, 0.80) !important;
+}
+.light .text-white\/75 {
+  color: rgba(11, 28, 48, 0.75) !important;
+}
+.light .text-white\/70 {
+  color: rgba(11, 28, 48, 0.70) !important;
+}
+.light .text-white\/60 {
+  color: rgba(11, 28, 48, 0.60) !important;
+}
+.light .text-white\/45 {
+  color: rgba(11, 28, 48, 0.45) !important;
+}
+.light .text-white\/40 {
+  color: rgba(11, 28, 48, 0.40) !important;
+}
+.light .text-white\/35 {
+  color: rgba(11, 28, 48, 0.35) !important;
+}
+.light .text-white\/25 {
+  color: rgba(11, 28, 48, 0.25) !important;
+}
+.light .text-white\/15 {
+  color: rgba(11, 28, 48, 0.15) !important;
+}
+.light .text-white\/10 {
+  color: rgba(11, 28, 48, 0.10) !important;
+}
+.light .text-white\/07 {
+  color: rgba(11, 28, 48, 0.07) !important;
+}
+.light .text-white\/05 {
+  color: rgba(11, 28, 48, 0.05) !important;
+}
+.light .text-white\/03 {
+  color: rgba(11, 28, 48, 0.03) !important;
+}
+
+/* Overriding white borders to dark borders for light theme */
+.light .border-white\/10 {
+  border-color: rgba(11, 28, 48, 0.10) !important;
+}
+.light .border-white\/07 {
+  border-color: rgba(11, 28, 48, 0.07) !important;
+}
+.light .border-white\/05 {
+  border-color: rgba(11, 28, 48, 0.05) !important;
+}
+.light .border-brand-border {
+  border-color: rgba(11, 28, 48, 0.08) !important;
+}
+
+/* Overriding white background helpers to dark backgrounds for light theme */
+.light .bg-white\/5 {
+  background-color: rgba(11, 28, 48, 0.05) !important;
+}
+.light .bg-white\/10 {
+  background-color: rgba(11, 28, 48, 0.08) !important;
+}
+.light .bg-white\/03 {
+  background-color: rgba(11, 28, 48, 0.03) !important;
+}
+.light .bg-white\/05 {
+  background-color: rgba(11, 28, 48, 0.05) !important;
+}
+
+/* Semi-transparent header and modal dark overlay values */
+.light .bg-black\/20 {
+  background-color: rgba(255, 255, 255, 0.40) !important;
+}
+.light .bg-black\/75 {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* Form inputs & interactive widgets in light mode */
+.light .input-base {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(11, 28, 48, 0.12);
+  color: #0B1C30;
+}
+.light .input-base:focus {
+  border-color: var(--color-accent);
+}
+.light .input-base::placeholder {
+  color: rgba(11, 28, 48, 0.40);
+}
+
+.light .btn-primary {
+  background: rgba(11, 28, 48, 0.04);
+  border-color: rgba(11, 28, 48, 0.10);
+  color: #0B1C30;
+}
+.light .btn-primary:hover {
+  background: rgba(11, 28, 48, 0.08);
+}
+
+.light .btn-icon {
+  background: rgba(11, 28, 48, 0.03);
+  border-color: rgba(11, 28, 48, 0.08);
+  color: rgba(11, 28, 48, 0.55);
+}
+.light .btn-icon:hover {
+  background: rgba(11, 28, 48, 0.07);
+  color: #0B1C30;
+}
+
+/* WebKit Scrollbar colors in light mode */
+.light ::-webkit-scrollbar-thumb {
+  background: rgba(11, 28, 48, 0.15);
+}
+
+/* Bento card and details overrides for light mode */
+.light .bg-indigo-950\/20 {
+  background-color: rgba(99, 102, 241, 0.06) !important;
+}
+.light .border-indigo-500\/10 {
+  border-color: rgba(99, 102, 241, 0.15) !important;
+}
+.light .text-indigo-400 {
+  color: #4F46E5 !important;
+}
+.light .bg-indigo-500\/10 {
+  background-color: rgba(99, 102, 241, 0.10) !important;
+}
+.light .bg-amber-500\/10 {
+  background-color: rgba(249, 115, 22, 0.10) !important;
+}
+.light .text-emerald-400 {
+  color: #059669 !important;
+}
+.light .bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.10) !important;
+}
