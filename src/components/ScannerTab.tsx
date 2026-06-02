@@ -101,13 +101,69 @@ export function ScannerTab() {
   }, [pendingInitialToken, resolveToken, isLoaded]);
 
   /* ── Live camera (debounced) ────────────────────────────────── */
-  const handleLiveScan = (raw: string) => {
+  const handleLiveScan = useCallback((raw: string) => {
+    if (!isLoaded) return; // Prevent scanning if database isn't loaded yet
     if (raw === lastScannedRef.current) return;
     lastScannedRef.current = raw;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { lastScannedRef.current = ""; }, 3000);
+    // Reduced duplicate scan debounce from 3000ms to 1500ms for responsiveness
+    debounceRef.current = setTimeout(() => { lastScannedRef.current = ""; }, 1500);
     resolveToken(raw);
-  };
+  }, [isLoaded, resolveToken]);
+
+  /* ── Auto scan loop fallback for iOS / Safari ───────────────── */
+  useEffect(() => {
+    let active = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let frameId: number | null = null;
+
+    const scanFrame = () => {
+      if (!active) return;
+
+      const video = scannerRef.current?.querySelector("video");
+      if (
+        video &&
+        video.videoWidth > 0 &&
+        video.videoHeight > 0 &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+      ) {
+        try {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const qr = jsQR(imageData.data, canvas.width, canvas.height);
+            if (qr && qr.data) {
+              handleLiveScan(qr.data);
+            }
+          }
+        } catch (e) {
+          console.error("Auto-scan frame error:", e);
+        }
+      }
+
+      timeoutId = setTimeout(() => {
+        if (active) {
+          frameId = requestAnimationFrame(scanFrame);
+        }
+      }, 200);
+    };
+
+    timeoutId = setTimeout(() => {
+      if (active) {
+        frameId = requestAnimationFrame(scanFrame);
+      }
+    }, 800);
+
+    return () => {
+      active = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [handleLiveScan]);
 
   /* ── Capture frame ──────────────────────────────────────────── */
   const handleCaptureFrame = useCallback((attempt = 0) => {
@@ -161,81 +217,105 @@ export function ScannerTab() {
 
   /* ── Render ─────────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col md:flex-row h-full overflow-hidden">
 
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="pt-safe flex-shrink-0 flex flex-col items-center px-5 pt-4 pb-2">
-        <p className="text-xs uppercase tracking-[0.25em] text-white/30 mb-0.5 font-medium">
-          Security Portal
-        </p>
-        <h1 className="serif italic text-3xl text-amber-100/90 leading-none">
-          Sentinel
-        </h1>
-        <div className="mt-2 flex items-center gap-2">
-          <motion.span
-            animate={{ opacity: [1, 0.3, 1] }}
-            transition={{ duration: 1.8, repeat: Infinity }}
-            className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"
-          />
-          <span className="text-xs text-white/40 uppercase tracking-widest font-medium">
-            Live — Ready to Scan
-          </span>
-        </div>
-      </header>
-
-      {/* ── Scanner viewport ────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex justify-center px-4 pb-3">
-        <div
-          ref={scannerRef}
-          className={cn(
-            "relative overflow-hidden rounded-[2rem] border-2 transition-all duration-300",
-            lastFlash ? FLASH_BORDER[lastFlash] : "border-white/10"
-          )}
-          style={{
-            width:  "min(84vw, 360px)",
-            height: "min(84vw, 360px)",
-            boxShadow: lastFlash ? undefined : "0 0 60px rgba(246,190,90,0.06), 0 20px 60px rgba(0,0,0,0.5)",
-          }}
-        >
-          {/* Camera */}
-          <Scanner
-            onScan={(r) => handleLiveScan(r[0].rawValue)}
-            formats={["qr_code"]}
-            styles={{ container: { width: "100%", height: "100%" } }}
-          />
-
-          {/* Corner markers + scan line overlay */}
-          <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
-            <motion.div
-              className="absolute inset-0"
-              animate={{ boxShadow: ["inset 0 0 30px rgba(246,190,90,0.04)", "inset 0 0 70px rgba(246,190,90,0.13)", "inset 0 0 30px rgba(246,190,90,0.04)"] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+      {/* Left Pane: Header, Scanner, and Actions */}
+      <div className="flex-shrink-0 flex flex-col items-center md:w-[380px] lg:w-[420px] md:h-full md:border-r md:border-brand-border md:justify-start md:py-6 overflow-y-auto">
+        {/* ── Header ─────────────────────────────────────────────── */}
+        <header className="pt-safe flex-shrink-0 flex flex-col items-center px-5 pt-4 pb-2">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/30 mb-0.5 font-medium">
+            Security Portal
+          </p>
+          <h1 className="serif italic text-3xl text-amber-100/90 leading-none">
+            Sentinel
+          </h1>
+          <div className="mt-2 flex items-center gap-2">
+            <motion.span
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity }}
+              className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"
             />
-            <div className="absolute inset-0 scanner-gradient opacity-25" />
-            <div className="relative w-[58%] h-[58%]">
-              {[
-                "top-0 left-0 border-t-[5px] border-l-[5px] rounded-tl-xl",
-                "top-0 right-0 border-t-[5px] border-r-[5px] rounded-tr-xl",
-                "bottom-0 left-0 border-b-[5px] border-l-[5px] rounded-bl-xl",
-                "bottom-0 right-0 border-b-[5px] border-r-[5px] rounded-br-xl",
-              ].map((cls, i) => (
-                <div key={i} className={`absolute w-8 h-8 border-amber-300/80 ${cls}`} />
-              ))}
+            <span className="text-xs text-white/40 uppercase tracking-widest font-medium">
+              Live — Ready to Scan
+            </span>
+          </div>
+        </header>
+
+        {/* ── Scanner viewport ────────────────────────────────────── */}
+        <div className="flex-shrink-0 flex justify-center px-4 py-3 md:py-6 w-full">
+          <div
+            ref={scannerRef}
+            className={cn(
+              "relative overflow-hidden rounded-[2rem] border-2 transition-all duration-300",
+              lastFlash ? FLASH_BORDER[lastFlash] : "border-white/10"
+            )}
+            style={{
+              width:  "min(80vw, 35vh, 330px)",
+              height: "min(80vw, 35vh, 330px)",
+              boxShadow: lastFlash ? undefined : "0 0 60px rgba(246,190,90,0.06), 0 20px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            {/* Camera */}
+            <Scanner
+              onScan={(r) => handleLiveScan(r[0].rawValue)}
+              formats={["qr_code"]}
+              styles={{ container: { width: "100%", height: "100%" } }}
+              scanDelay={200}
+              constraints={{ facingMode: "environment" }}
+            />
+
+            {/* Corner markers + scan line overlay */}
+            <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
               <motion.div
-                animate={{ top: ["8%", "92%"], opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
-                className="absolute left-0 right-0 h-[2px] bg-amber-200 shadow-[0_0_14px_rgba(246,190,90,1)]"
+                className="absolute inset-0"
+                animate={{ boxShadow: ["inset 0 0 30px rgba(246,190,90,0.04)", "inset 0 0 70px rgba(246,190,90,0.13)", "inset 0 0 30px rgba(246,190,90,0.04)"] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
               />
+              <div className="absolute inset-0 scanner-gradient opacity-25" />
+              <div className="relative w-[58%] h-[58%]">
+                {[
+                  "top-0 left-0 border-t-[5px] border-l-[5px] rounded-tl-xl",
+                  "top-0 right-0 border-t-[5px] border-r-[5px] rounded-tr-xl",
+                  "bottom-0 left-0 border-b-[5px] border-l-[5px] rounded-bl-xl",
+                  "bottom-0 right-0 border-b-[5px] border-r-[5px] rounded-br-xl",
+                ].map((cls, i) => (
+                  <div key={i} className={`absolute w-8 h-8 border-amber-300/80 ${cls}`} />
+                ))}
+                <motion.div
+                  animate={{ top: ["8%", "92%"], opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                  className="absolute left-0 right-0 h-[2px] bg-amber-200 shadow-[0_0_14px_rgba(246,190,90,1)]"
+                />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* ── Action Buttons ── */}
+        <div className="flex-shrink-0 px-4 pt-3 pb-3 grid grid-cols-2 gap-3 w-full max-w-[360px] md:pt-4">
+          <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+
+          {[
+            { icon: Upload, label: "Upload QR", action: () => fileInputRef.current?.click() },
+            { icon: Camera, label: "Capture",   action: handleCaptureFrame                   },
+          ].map(({ icon: Icon, label, action }) => (
+            <button
+              key={label}
+              onClick={action}
+              className="glass glass-hover active:scale-95 transition-all rounded-2xl py-4 flex items-center justify-center gap-2.5 group"
+            >
+              <Icon className="w-5 h-5 text-amber-300/60 group-hover:text-amber-300 transition-colors" />
+              <span className="text-sm font-semibold uppercase tracking-wider text-white/55 group-hover:text-white/80 transition-colors">
+                {label}
+              </span>
+            </button>
+          ))}
+        </div>
+
       </div>
 
-      {/* ── Scan Log (1/3 of screen) ─────────────────────────────── */}
-      <div
-        className="flex-shrink-0 flex flex-col px-4"
-        style={{ height: "28vh" }}
-      >
+      {/* Right Pane: Scan Log */}
+      <div className="flex-1 flex flex-col px-4 min-h-[120px] md:h-full md:py-6 overflow-hidden">
         {/* Log header */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -284,27 +364,6 @@ export function ScannerTab() {
             )}
           </AnimatePresence>
         </div>
-      </div>
-
-      {/* ── Action Buttons (below log) ──────────────────────────── */}
-      <div className="flex-shrink-0 px-4 pt-3 pb-3 grid grid-cols-2 gap-3">
-        <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
-
-        {[
-          { icon: Upload, label: "Upload QR", action: () => fileInputRef.current?.click() },
-          { icon: Camera, label: "Capture",   action: handleCaptureFrame                   },
-        ].map(({ icon: Icon, label, action }) => (
-          <button
-            key={label}
-            onClick={action}
-            className="glass glass-hover active:scale-95 transition-all rounded-2xl py-4 flex items-center justify-center gap-2.5 group"
-          >
-            <Icon className="w-5 h-5 text-amber-300/60 group-hover:text-amber-300 transition-colors" />
-            <span className="text-sm font-semibold uppercase tracking-wider text-white/55 group-hover:text-white/80 transition-colors">
-              {label}
-            </span>
-          </button>
-        ))}
       </div>
 
     </div>

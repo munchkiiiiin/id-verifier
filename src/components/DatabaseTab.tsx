@@ -159,13 +159,13 @@ export function DatabaseTab() {
       </header>
 
       {/* Scrollable employee list */}
-      <div className="flex-1 scroll-smooth-y px-5 py-4 space-y-3">
+      <div className="flex-1 scroll-smooth-y px-5 py-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 auto-rows-max content-start">
 
         {employees.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3"
+            className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3 col-span-full"
           >
             <Users className="w-9 h-9 opacity-40" />
             <p className="text-fluid-sm">No records yet</p>

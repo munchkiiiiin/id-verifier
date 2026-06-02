@@ -46,12 +46,13 @@ $$;
 alter table public.employees enable row level security;
 alter table public.users enable row level security;
 
--- Admin app policy set: only approved admins can manage employee records.
+-- Anyone can read employee records (needed for QR scanning without logging in).
 drop policy if exists "authenticated can read employees" on public.employees;
-create policy "authenticated can read employees"
+drop policy if exists "anyone can read employees" on public.employees;
+create policy "anyone can read employees"
 on public.employees for select
-to authenticated
-using (public.is_admin_user());
+to public
+using (true);
 
 drop policy if exists "authenticated can manage employees" on public.employees;
 create policy "authenticated can manage employees"
