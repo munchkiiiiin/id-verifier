@@ -6,7 +6,7 @@ export type Employee = {
   id: string; // The Document ID (secure UUID token)
   employeeCode: string; // The explicit display ID (e.g. EMP-1234)
   name: string;
-  department: string;
+  designation: string;
   expiryDate: string; // YYYY-MM-DD
   isActive: boolean;
 };
@@ -22,7 +22,7 @@ export function useEmployees() {
     id: String(row.id ?? ""),
     employeeCode: String(row.employee_code ?? ""),
     name: String(row.name ?? ""),
-    department: String(row.department ?? ""),
+    designation: String(row.designation ?? ""),
     expiryDate: String(row.expiry_date ?? ""),
     isActive: Boolean(row.is_active),
   });
@@ -63,7 +63,7 @@ export function useEmployees() {
   const loadEmployees = async () => {
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employee_code, name, department, expiry_date, is_active")
+      .select("id, employee_code, name, designation, expiry_date, is_active")
       .order("name", { ascending: true });
 
     if (error) {
@@ -140,7 +140,7 @@ export function useEmployees() {
       id: employee.id,
       employee_code: employeeCode,
       name: employee.name,
-      department: employee.department,
+      designation: employee.designation,
       expiry_date: employee.expiryDate,
       is_active: employee.isActive,
       created_at: now,
@@ -169,7 +169,7 @@ export function useEmployees() {
       .update({
         employee_code: employeeCode,
         name: employee.name,
-        department: employee.department,
+        designation: employee.designation,
         expiry_date: employee.expiryDate,
         is_active: employee.isActive,
         updated_at: new Date().toISOString(),
@@ -215,7 +215,7 @@ export function useEmployees() {
   const fetchEmployeeByToken = async (token: string): Promise<Employee | null> => {
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employee_code, name, department, expiry_date, is_active")
+      .select("id, employee_code, name, designation, expiry_date, is_active")
       .eq("id", token)
       .maybeSingle();
 

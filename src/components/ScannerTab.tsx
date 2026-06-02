@@ -411,7 +411,7 @@ function LogRow({ entry }: { entry: LogEntry }) {
               <>
                 <span className="text-xs text-white/35 font-mono">{emp.employeeCode}</span>
                 <span className="text-white/20 text-[9px]">•</span>
-                <span className="text-xs text-white/35">{emp.department}</span>
+                <span className="text-xs text-white/35">{emp.designation}</span>
                 <span className="text-white/20 text-[9px]">•</span>
               </>
             )}
@@ -434,8 +434,8 @@ function LogRow({ entry }: { entry: LogEntry }) {
           >
             <div className="glass rounded-b-2xl -mt-2 pt-5 pb-4 px-4 border border-t-0 border-white/07 grid grid-cols-2 gap-3">
               <div>
-                <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Department</p>
-                <p className="text-sm text-white/75 font-medium">{emp.department}</p>
+                <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Designation</p>
+                <p className="text-sm text-white/75 font-medium">{emp.designation}</p>
               </div>
               <div>
                 <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Valid Until</p>

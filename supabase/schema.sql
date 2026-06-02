@@ -6,7 +6,7 @@ create table if not exists public.employees (
   id uuid primary key default gen_random_uuid(),
   employee_code text not null,
   name text not null,
-  department text not null,
+  designation text not null,
   expiry_date date not null,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),

@@ -108,7 +108,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const query = new URLSearchParams({
-    select: "id,employee_code,name,department,expiry_date,is_active",
+    select: "id,employee_code,name,designation,expiry_date,is_active",
     id: `eq.${token}`,
     limit: "1",
   });

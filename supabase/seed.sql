@@ -4,7 +4,7 @@
 insert into public.employees (
   employee_code,
   name,
-  department,
+  designation,
   expiry_date,
   is_active
 )
@@ -36,7 +36,7 @@ values
   ('520625', 'JASON VALERA', 'Warehouse Personnel', '2026-06-30', true)
 on conflict (employee_code) do update set
   name = excluded.name,
-  department = excluded.department,
+  designation = excluded.designation,
   expiry_date = excluded.expiry_date,
   is_active = excluded.is_active,
   updated_at = now();

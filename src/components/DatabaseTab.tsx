@@ -263,7 +263,7 @@ function EmployeeCard({
           <span className="text-white/20 text-[10px]">•</span>
           <span className="text-fluid-xs text-white/35 font-mono">{employee.employeeCode}</span>
           <span className="text-white/20 text-[10px]">•</span>
-          <span className="text-fluid-xs text-white/30">{employee.department}</span>
+          <span className="text-fluid-xs text-white/30">{employee.designation}</span>
         </div>
         <p className="text-fluid-xs text-white/20 mt-1">
           Expires {format(parseISO(employee.expiryDate), "MMM d, yyyy")}
@@ -309,7 +309,7 @@ function EmployeeFormModal({
     employee?.employeeCode || getNextEmployeeCode(employees)
   );
   const [name,       setName]       = useState(employee?.name || "");
-  const [department, setDepartment] = useState(employee?.department || "");
+  const [designation, setDesignation] = useState(employee?.designation || "");
   const [expiryDate, setExpiryDate] = useState(
     employee?.expiryDate || format(addYears(new Date(), 1), "yyyy-MM-dd")
   );
@@ -335,13 +335,13 @@ function EmployeeFormModal({
       return;
     }
 
-    if (!name || !department || !expiryDate) {
+    if (!name || !designation || !expiryDate) {
       setLocalError("Please complete all required fields.");
       return;
     }
 
     setLocalError(null);
-    onSave({ id: employee?.id || crypto.randomUUID(), employeeCode: normalizedEmployeeCode, name, department, expiryDate, isActive: true });
+    onSave({ id: employee?.id || crypto.randomUUID(), employeeCode: normalizedEmployeeCode, name, designation, expiryDate, isActive: true });
   };
 
   return (
@@ -367,7 +367,7 @@ function EmployeeFormModal({
           {[
             { label: "Employee ID", value: employeeCode, set: setEmployeeCode, placeholder: "5206XX", numeric: true },
             { label: "Full Name",   value: name,         set: setName,         placeholder: "John Doe"             },
-            { label: "Department",  value: department,   set: setDepartment,   placeholder: "Engineering"          },
+            { label: "Designation",  value: designation,   set: setDesignation,   placeholder: "Sales Associate"          },
           ].map(({ label, value, set, placeholder, numeric }) => (
             <div key={label}>
               <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
