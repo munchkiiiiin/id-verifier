@@ -47,6 +47,47 @@ export function DatabaseTab() {
   const [showFormFor, setShowFormFor] = useState<Employee | "new" | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  type SortOption = "name" | "employeeCode" | "designation" | "expiryDate";
+  type StatusFilterOption = "all" | "valid" | "expired";
+
+  const [sortBy, setSortBy] = useState<SortOption>("name");
+  const [filterStatus, setFilterStatus] = useState<StatusFilterOption>("all");
+  const [filterDesignation, setFilterDesignation] = useState<string>("all");
+
+  const uniqueDesignations = Array.from(
+    new Set(employees.map((e) => e.designation).filter(Boolean))
+  ).sort();
+
+  const filteredEmployees = employees
+    .filter((emp) => {
+      if (filterDesignation !== "all" && emp.designation !== filterDesignation) {
+        return false;
+      }
+      if (filterStatus !== "all") {
+        const isExpired = isBefore(startOfDay(parseISO(emp.expiryDate)), startOfDay(new Date()));
+        if (filterStatus === "valid" && isExpired) return false;
+        if (filterStatus === "expired" && !isExpired) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "name") {
+        return a.name.localeCompare(b.name);
+      }
+      if (sortBy === "employeeCode") {
+        const numA = parseInt(a.employeeCode, 10) || 0;
+        const numB = parseInt(b.employeeCode, 10) || 0;
+        return numA - numB;
+      }
+      if (sortBy === "designation") {
+        return a.designation.localeCompare(b.designation);
+      }
+      if (sortBy === "expiryDate") {
+        return a.expiryDate.localeCompare(b.expiryDate);
+      }
+      return 0;
+    });
+
   const openNewForm = () => {
     setFormError(null);
     setShowFormFor("new");
@@ -146,15 +187,71 @@ export function DatabaseTab() {
           </div>
         </div>
 
-        {/* Status indicator */}
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 glass rounded-full px-3 py-1 border border-emerald-500/20">
-            <Wifi className="w-3 h-3 text-emerald-400" />
-            <span className="text-fluid-xs text-emerald-400 font-medium">Cloud Active</span>
-          </span>
-          <span className="text-fluid-xs text-white/25">
-            {employees.length} {employees.length === 1 ? "record" : "records"}
-          </span>
+        {/* Status indicator & sorting/filtering */}
+        <div className="flex flex-col gap-3 mt-3">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 glass rounded-full px-3 py-1 border border-emerald-500/20">
+              <Wifi className="w-3 h-3 text-emerald-400" />
+              <span className="text-fluid-xs text-emerald-400 font-medium">Cloud Active</span>
+            </span>
+            <span className="text-fluid-xs text-white/25">
+              {filteredEmployees.length === employees.length ? (
+                `${employees.length} ${employees.length === 1 ? "record" : "records"}`
+              ) : (
+                `${filteredEmployees.length} of ${employees.length} records (filtered)`
+              )}
+            </span>
+          </div>
+
+          {/* Controls toolbar */}
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            {/* Sort */}
+            <div className="flex flex-col">
+              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="input-base py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="name">Name (A-Z)</option>
+                <option value="employeeCode">Employee ID</option>
+                <option value="designation">Designation</option>
+                <option value="expiryDate">Expiry Date</option>
+              </select>
+            </div>
+
+            {/* Filter Status */}
+            <div className="flex flex-col">
+              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as StatusFilterOption)}
+                className="input-base py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="all">All</option>
+                <option value="valid">Valid Only</option>
+                <option value="expired">Expired Only</option>
+              </select>
+            </div>
+
+            {/* Filter Designation */}
+            <div className="flex flex-col">
+              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Designation</label>
+              <select
+                value={filterDesignation}
+                onChange={(e) => setFilterDesignation(e.target.value)}
+                className="input-base py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="all">All</option>
+                {uniqueDesignations.map((des) => (
+                  <option key={des} value={des}>{des}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -176,9 +273,27 @@ export function DatabaseTab() {
               + Add first record
             </button>
           </motion.div>
+        ) : filteredEmployees.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3 col-span-full text-center"
+          >
+            <Users className="w-9 h-9 opacity-40" />
+            <p className="text-fluid-sm">No matching records found</p>
+            <button
+              onClick={() => {
+                setFilterStatus("all");
+                setFilterDesignation("all");
+              }}
+              className="text-fluid-xs text-amber-300/60 hover:text-amber-300 transition-colors uppercase tracking-wider"
+            >
+              Clear Filters
+            </button>
+          </motion.div>
         ) : (
           <AnimatePresence>
-            {employees.map((emp, i) => (
+            {filteredEmployees.map((emp, i) => (
               <motion.div
                 key={emp.id}
                 initial={{ opacity: 0, y: 10 }}
