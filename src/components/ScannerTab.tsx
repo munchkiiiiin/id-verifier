@@ -470,12 +470,6 @@ function LogRow({ entry }: { entry: LogEntry }) {
                 <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Scanned At</p>
                 <p className="text-xs text-white/45 font-mono">{format(entry.timestamp, "MMMM d, yyyy — h:mm:ss a")}</p>
               </div>
-              {entry.scannedToken && (
-                <div className="col-span-2">
-                  <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Token</p>
-                  <p className="text-xs text-white/45 font-mono break-all">{entry.scannedToken}</p>
-                </div>
-              )}
             </div>
           </motion.div>
         )}

@@ -288,12 +288,6 @@ export function ReportsTab({ scanLog, onClearLogs, theme, onToggleTheme }: Repor
                                       <p className="text-white/20 uppercase tracking-widest font-semibold mb-0.5">Scan Exact Time</p>
                                       <p className="text-white/50 font-mono">{format(log.timestamp, "MMMM d, yyyy — hh:mm:ss a")}</p>
                                     </div>
-                                    {log.scannedToken && (
-                                      <div className="col-span-2 border-t border-white/03 pt-2 mt-1">
-                                        <p className="text-white/20 uppercase tracking-widest font-semibold mb-0.5">Scanned Token</p>
-                                        <p className="text-white/40 font-mono break-all leading-normal">{log.scannedToken}</p>
-                                      </div>
-                                    )}
                                   </div>
                                 </motion.div>
                               )}
