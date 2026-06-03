@@ -185,6 +185,24 @@ export function DatabaseTab({
   };
 
   const handleAddAdmin = async (email: string, displayName: string, password: string) => {
+    // Pre-check if email already exists in public.users to give a clear error immediately
+    try {
+      const { data: existingUser, error: checkError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .maybeSingle();
+      
+      if (!checkError && existingUser) {
+        throw new Error("This email is already registered as an admin or user.");
+      }
+    } catch (checkErr: any) {
+      if (checkErr.message && checkErr.message.includes("registered")) {
+        throw checkErr;
+      }
+      // Otherwise ignore checking errors and proceed
+    }
+
     const tempClient = createTempAuthClient();
     try {
       // 1. Sign up in Supabase Auth
@@ -199,7 +217,9 @@ export function DatabaseTab({
       });
 
       if (signUpError) throw signUpError;
-      if (!data.user) throw new Error("Failed to register account.");
+      if (!data.user) {
+        throw new Error("This email is already registered in Supabase Auth (or user signup is restricted).");
+      }
 
       // 2. Insert into public.users
       const { error: dbError } = await supabase
