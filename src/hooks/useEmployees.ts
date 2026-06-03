@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./useAuth";
 
@@ -18,14 +18,14 @@ export function useEmployees() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { user, isAdmin } = useAuth();
 
-  const mapRowToEmployee = (row: Record<string, unknown>): Employee => ({
+  const mapRowToEmployee = useCallback((row: Record<string, unknown>): Employee => ({
     id: String(row.id ?? ""),
     employeeCode: String(row.employee_code ?? ""),
     name: String(row.name ?? ""),
     designation: String(row.designation ?? ""),
     expiryDate: String(row.expiry_date ?? ""),
     isActive: Boolean(row.is_active),
-  });
+  }), []);
 
   const sortEmployees = (items: Employee[]) =>
     [...items].sort((left, right) => left.name.localeCompare(right.name));
@@ -195,7 +195,7 @@ export function useEmployees() {
     return employees.find((e) => e.id === id);
   };
 
-  const fetchEmployeeByTokenViaApi = async (token: string): Promise<Employee | null> => {
+  const fetchEmployeeByTokenViaApi = useCallback(async (token: string): Promise<Employee | null> => {
     try {
       const response = await fetch(`/api/verify-token?token=${encodeURIComponent(token)}`);
       if (!response.ok) {
@@ -209,10 +209,10 @@ export function useEmployees() {
     } catch {
       return null;
     }
-  };
+  }, [mapRowToEmployee]);
 
   // For the scanner, fetch online directly by token (which is the document ID)
-  const fetchEmployeeByToken = async (token: string): Promise<Employee | null> => {
+  const fetchEmployeeByToken = useCallback(async (token: string): Promise<Employee | null> => {
     const { data, error } = await supabase
       .from("employees")
       .select("id, employee_code, name, designation, expiry_date, is_active")
@@ -225,7 +225,7 @@ export function useEmployees() {
 
     // Anonymous link-open flow can be blocked by RLS; fallback to server-side verification.
     return fetchEmployeeByTokenViaApi(token);
-  };
+  }, [mapRowToEmployee, fetchEmployeeByTokenViaApi]);
 
   return {
     employees,

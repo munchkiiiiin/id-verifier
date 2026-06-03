@@ -46,6 +46,8 @@ export function ScannerTab({
   onPushLog,
   onClearLogs,
   captureTrigger,
+  lastProcessedTrigger,
+  onCaptureComplete,
   theme,
   onToggleTheme
 }: {
@@ -53,6 +55,8 @@ export function ScannerTab({
   onPushLog: (entry: LogEntry) => void;
   onClearLogs?: () => void;
   captureTrigger?: number;
+  lastProcessedTrigger?: number;
+  onCaptureComplete?: (val: number) => void;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
 }) {
@@ -66,12 +70,12 @@ export function ScannerTab({
   const handledInitialTokenRef            = useRef(false);
 
   /* ── Push result to log ─────────────────────────────────────── */
-  const pushLog = (entry: Omit<LogEntry, "id" | "timestamp">) => {
+  const pushLog = useCallback((entry: Omit<LogEntry, "id" | "timestamp">) => {
     const newEntry: LogEntry = { ...entry, id: crypto.randomUUID(), timestamp: new Date() };
     onPushLog(newEntry);
     setLastFlash(entry.status);
     setTimeout(() => setLastFlash(null), 900);
-  };
+  }, [onPushLog]);
 
   /* ── Resolve token ──────────────────────────────────────────── */
   const resolveToken = useCallback(async (raw: string) => {
@@ -89,7 +93,7 @@ export function ScannerTab({
     } catch {
       pushLog({ status: "invalid_qr" });
     }
-  }, [fetchEmployeeByToken, isLoaded]);
+  }, [fetchEmployeeByToken, isLoaded, pushLog]);
 
   useEffect(() => {
     if (handledInitialTokenRef.current || pendingInitialToken || typeof window === "undefined") return;
@@ -204,14 +208,17 @@ export function ScannerTab({
     }
 
     pushLog({ status: "invalid_qr" });
-  }, [resolveToken]);
+  }, [resolveToken, pushLog]);
 
   // Capture frame trigger from bottom navbar
   useEffect(() => {
-    if (captureTrigger && captureTrigger > 0) {
+    const triggerVal = captureTrigger ?? 0;
+    const lastVal = lastProcessedTrigger ?? 0;
+    if (triggerVal > 0 && triggerVal > lastVal) {
+      onCaptureComplete?.(triggerVal);
       handleCaptureFrame();
     }
-  }, [captureTrigger, handleCaptureFrame]);
+  }, [captureTrigger, lastProcessedTrigger, onCaptureComplete, handleCaptureFrame]);
 
   /* ── Image upload ───────────────────────────────────────────── */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

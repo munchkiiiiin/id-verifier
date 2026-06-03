@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Home, QrCode, ClipboardList, Database, Camera } from "lucide-react";
 import { HomeTab } from "./components/HomeTab";
 import { ScannerTab, LogEntry } from "./components/ScannerTab";
@@ -13,6 +13,7 @@ type Tab = "home" | "scanner" | "reports" | "database";
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [captureTrigger, setCaptureTrigger] = useState(0);
+  const [lastProcessedTrigger, setLastProcessedTrigger] = useState(0);
 
   // Theme state persisted to localStorage
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -56,6 +57,18 @@ export default function App() {
       console.error("Failed to save scan log to localStorage:", e);
     }
   }, [scanLog]);
+
+  const handlePushLog = useCallback((entry: LogEntry) => {
+    setScanLog((prev) => [entry, ...prev].slice(0, 50));
+  }, []);
+
+  const handleClearLogs = useCallback(() => {
+    setScanLog([]);
+  }, []);
+
+  const handleCaptureComplete = useCallback((val: number) => {
+    setLastProcessedTrigger(val);
+  }, []);
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-gradient-to-br from-brand-bg-grad-start to-brand-bg-grad-end relative overflow-hidden">
@@ -105,9 +118,11 @@ export default function App() {
           {activeTab === "scanner" && (
             <ScannerTab
               scanLog={scanLog}
-              onPushLog={(entry) => setScanLog((prev) => [entry, ...prev].slice(0, 50))}
-              onClearLogs={() => setScanLog([])}
+              onPushLog={handlePushLog}
+              onClearLogs={handleClearLogs}
               captureTrigger={captureTrigger}
+              lastProcessedTrigger={lastProcessedTrigger}
+              onCaptureComplete={handleCaptureComplete}
               theme={theme}
               onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             />
