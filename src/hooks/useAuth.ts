@@ -15,14 +15,20 @@ function friendlyError(code: string): string {
 }
 
 function errorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    const authError = err as AuthError & { code?: string };
-    if (authError.code) {
-      return friendlyError(authError.code);
+  console.error("Authentication error details:", err);
+  if (err && typeof err === "object") {
+    const code = (err as any).code;
+    const message = (err as any).message;
+    if (code && typeof code === "string") {
+      return friendlyError(code);
     }
+    if (message && typeof message === "string") {
+      return message;
+    }
+  }
+  if (err instanceof Error) {
     return err.message;
   }
-
   return "Login failed. Please try again.";
 }
 
