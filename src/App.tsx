@@ -7,6 +7,7 @@ import { DatabaseTab } from "./components/DatabaseTab";
 import { cn } from "./lib/utils";
 import { motion } from "motion/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { useScanLogs } from "./hooks/useScanLogs";
 
 type Tab = "home" | "scanner" | "reports" | "database";
 
@@ -32,39 +33,19 @@ export default function App() {
     localStorage.setItem("sentinel_theme", theme);
   }, [theme]);
 
-  // Lifted Scan Logs state with localStorage persistence
-  const [scanLog, setScanLog] = useState<LogEntry[]>(() => {
-    try {
-      const stored = localStorage.getItem("sentinel_scan_log");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return parsed.map((item: any) => ({
-          ...item,
-          timestamp: new Date(item.timestamp)
-        }));
-      }
-    } catch (e) {
-      console.error("Failed to load scan log from localStorage:", e);
-    }
-    return [];
-  });
-
-  // Save scan logs to localStorage on changes
-  useEffect(() => {
-    try {
-      localStorage.setItem("sentinel_scan_log", JSON.stringify(scanLog));
-    } catch (e) {
-      console.error("Failed to save scan log to localStorage:", e);
-    }
-  }, [scanLog]);
+  const { scanLog, pushLog, clearLogs } = useScanLogs();
 
   const handlePushLog = useCallback((entry: LogEntry) => {
-    setScanLog((prev) => [entry, ...prev].slice(0, 50));
-  }, []);
+    void pushLog({
+      status: entry.status,
+      employee: entry.employee,
+      scannedToken: entry.scannedToken,
+    });
+  }, [pushLog]);
 
   const handleClearLogs = useCallback(() => {
-    setScanLog([]);
-  }, []);
+    void clearLogs();
+  }, [clearLogs]);
 
   const handleCaptureComplete = useCallback((val: number) => {
     setLastProcessedTrigger(val);
@@ -139,7 +120,7 @@ export default function App() {
           {activeTab === "reports" && (
             <ReportsTab
               scanLog={scanLog}
-              onClearLogs={() => setScanLog([])}
+              onClearLogs={handleClearLogs}
               theme={theme}
               onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             />
