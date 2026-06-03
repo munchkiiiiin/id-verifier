@@ -200,6 +200,12 @@ body {
     transition: border-color 0.2s, background-color 0.2s;
     font-family: var(--font-sans);
   }
+  .input-base.pl-11 {
+    padding-left: 2.75rem !important;
+  }
+  .input-base.pr-11 {
+    padding-right: 2.75rem !important;
+  }
   .input-base:focus {
     border-color: rgba(246, 190, 90, 0.50);
   }
