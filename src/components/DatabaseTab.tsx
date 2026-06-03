@@ -185,56 +185,24 @@ export function DatabaseTab({
   };
 
   const handleAddAdmin = async (email: string, displayName: string, password: string) => {
-    // Pre-check if email already exists in public.users to give a clear error immediately
     try {
-      const { data: existingUser, error: checkError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
-      
-      if (!checkError && existingUser) {
-        throw new Error("This email is already registered as an admin or user.");
-      }
-    } catch (checkErr: any) {
-      if (checkErr.message && checkErr.message.includes("registered")) {
-        throw checkErr;
-      }
-      // Otherwise ignore checking errors and proceed
-    }
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-    const tempClient = createTempAuthClient();
-    try {
-      // 1. Sign up in Supabase Auth
-      const { data, error: signUpError } = await tempClient.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: displayName,
-          },
+      if (!token) throw new Error("No active session found.");
+
+      const response = await fetch("/api/create-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
         },
+        body: JSON.stringify({ email, displayName, password })
       });
 
-      if (signUpError) throw signUpError;
-      if (!data.user) {
-        throw new Error("This email is already registered in Supabase Auth (or user signup is restricted).");
-      }
-
-      // 2. Insert into public.users
-      const { error: dbError } = await supabase
-        .from("users")
-        .insert({
-          id: data.user.id,
-          email,
-          display_name: displayName,
-          is_admin: true,
-          is_super_admin: false,
-        });
-
-      if (dbError) {
-        console.error("Database user insertion failed:", dbError);
-        throw new Error(`Auth account created, but profile insert failed: ${dbError.message}`);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create admin account.");
       }
 
       await fetchAdminUsers();
