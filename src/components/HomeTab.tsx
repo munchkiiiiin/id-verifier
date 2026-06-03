@@ -31,11 +31,10 @@ export function HomeTab({ onStartScan, theme, onToggleTheme }: HomeTabProps) {
 
       {/* ── Scrollable Content ─────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 max-w-5xl mx-auto w-full flex flex-col gap-6 md:gap-8 pb-32">
-        {/* ── Hero Section ─────────────────────────────────────────── */}
-        <section className="flex flex-col items-center justify-center text-center py-10 md:py-16 relative overflow-hidden rounded-3xl glass border border-white/07 shadow-xl">
+        <section className="flex-shrink-0 flex flex-col items-center text-center pt-16 pb-10 md:pt-24 md:pb-16 relative overflow-hidden rounded-3xl glass border border-white/07 shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-40 z-0" />
           
-          <div className="relative z-10 max-w-xl px-4 flex flex-col items-center gap-4">
+          <div className="relative z-10 max-w-xl px-4 flex flex-col items-center gap-4 pt-4">
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-emerald-400 font-semibold text-xs mb-2">
               <ShieldCheck className="w-4 h-4" />
               <span>System Online & Secure</span>
@@ -62,7 +61,7 @@ export function HomeTab({ onStartScan, theme, onToggleTheme }: HomeTabProps) {
         </section>
 
         {/* ── Bento Grid: How it works ─────────────────────────────── */}
-        <section className="flex flex-col gap-3">
+        <section className="flex-shrink-0 flex flex-col gap-3">
           <h2 className="text-lg font-bold text-white/90 font-headline-md tracking-wide px-1">How It Works</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -111,7 +110,7 @@ export function HomeTab({ onStartScan, theme, onToggleTheme }: HomeTabProps) {
         </section>
 
         {/* ── Info Banner: Encryption ──────────────────────────────── */}
-        <section className="bg-indigo-950/20 border border-indigo-500/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <section className="flex-shrink-0 bg-indigo-950/20 border border-indigo-500/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-2xl text-indigo-400">
               <Lock className="w-5 h-5" />

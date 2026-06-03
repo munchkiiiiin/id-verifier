@@ -432,7 +432,7 @@ function LogRow({ entry }: { entry: LogEntry }) {
           </span>
           <span className="text-xs text-white/35 font-mono mt-0.5 truncate block">
             {emp ? `ID: ${emp.employeeCode} • ${emp.designation} • ` : ""}
-            {format(entry.timestamp, "h:mm:ss a")}
+            {format(entry.timestamp, "MMM d, yyyy")} • {format(entry.timestamp, "h:mm:ss a")}
           </span>
         </div>
 
