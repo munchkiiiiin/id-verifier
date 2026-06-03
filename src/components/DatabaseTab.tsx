@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, useMemo, type FormEvent, type ReactNode } from "react";
 import { useEmployees, Employee } from "../hooks/useEmployees";
 import { useAuth } from "../hooks/useAuth";
 import { QRCodeCanvas } from "qrcode.react";
@@ -51,6 +51,7 @@ export function DatabaseTab({
   const { user, loginWithEmail, logout, loading, authLoading, error: authError } = useAuth();
   const [showQRFor,   setShowQRFor]   = useState<string | null>(null);
   const [showFormFor, setShowFormFor] = useState<Employee | "new" | null>(null);
+  const [showDetailsFor, setShowDetailsFor] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   type SortOption = "name" | "employeeCode" | "designation" | "expiryDate";
@@ -323,6 +324,7 @@ export function DatabaseTab({
                   onEdit={() => openEditForm(emp)}
                   onDelete={() => removeEmployee(emp.id)}
                   onShowQR={() => setShowQRFor(emp.id)}
+                  onShowDetails={() => setShowDetailsFor(emp)}
                 />
               </motion.div>
             ))}
@@ -356,6 +358,13 @@ export function DatabaseTab({
             }}
           />
         )}
+        {showDetailsFor && (
+          <EmployeeDetailModal
+            employee={showDetailsFor}
+            onClose={() => setShowDetailsFor(null)}
+            onEdit={() => openEditForm(showDetailsFor)}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
@@ -363,15 +372,22 @@ export function DatabaseTab({
 
 /* ─── Employee Card ─────────────────────────────────────────────── */
 function EmployeeCard({
-  employee, onEdit, onDelete, onShowQR
+  employee, onEdit, onDelete, onShowQR, onShowDetails
 }: {
-  employee: Employee; onEdit: () => void; onDelete: () => void; onShowQR: () => void; key?: string
+  employee: Employee;
+  onEdit: () => void;
+  onDelete: () => void;
+  onShowQR: () => void;
+  onShowDetails: () => void;
+  key?: string;
 }) {
   const isExpired = isBefore(startOfDay(parseISO(employee.expiryDate)), startOfDay(new Date()));
 
   return (
-    <div className="glass rounded-2xl p-4 flex items-center gap-3 border border-white/06 hover:border-white/10 transition-colors">
-
+    <div
+      onClick={onShowDetails}
+      className="glass rounded-2xl p-4 flex items-center gap-3 border border-white/06 hover:border-white/10 hover:bg-white/05 active:scale-[0.99] cursor-pointer transition-all text-left"
+    >
       {/* Status dot */}
       <div className="flex-shrink-0">
         <div className={cn(
@@ -405,22 +421,31 @@ function EmployeeCard({
       {/* Actions */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <button
-          onClick={onShowQR}
-          className="btn-icon hover:text-amber-300 hover:bg-amber-200/10 hover:border-amber-200/20"
+          onClick={(e) => {
+            e.stopPropagation();
+            onShowQR();
+          }}
+          className="btn-icon hover:text-amber-300 hover:bg-amber-200/10 hover:border-amber-200/20 cursor-pointer"
           title="Show QR"
         >
           <QrCode className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={onEdit}
-          className="btn-icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="btn-icon cursor-pointer"
           title="Edit"
         >
           <Edit2 className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={onDelete}
-          className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
           title="Delete"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -446,6 +471,16 @@ function EmployeeFormModal({
     employee?.expiryDate || format(addYears(new Date(), 1), "yyyy-MM-dd")
   );
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const uniqueDesignations = useMemo(() => {
+    return Array.from(
+      new Set(employees.map((e) => e.designation).filter(Boolean))
+    ).sort();
+  }, [employees]);
+
+  const [isCustomDesignation, setIsCustomDesignation] = useState(
+    () => !employee || !uniqueDesignations.includes(employee.designation)
+  );
 
   const currentError = errorMessage ?? localError;
 
@@ -478,8 +513,167 @@ function EmployeeFormModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <motion.div
+      <motion.form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
         key="form-modal"
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: "spring", damping: 22, stiffness: 300 }}
+        className="glass rounded-[2rem] p-6 w-full max-w-sm border border-white/10 relative mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" onClick={onClose} className="absolute top-5 right-5 btn-icon">
+          <X className="w-4 h-4" />
+        </button>
+
+        <h3 className="serif italic text-fluid-xl text-white mb-5">
+          {employee ? "Edit Record" : "New Record"}
+        </h3>
+
+        <div className="space-y-3 mb-5">
+          {/* Employee ID */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Employee ID
+            </label>
+            <input
+              value={employeeCode}
+              onChange={(e) => {
+                setEmployeeCode(normalizeEmployeeCode(e.target.value));
+                setLocalError(null);
+              }}
+              placeholder="5206XX"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="input-base tabular-nums"
+              required
+            />
+          </div>
+
+          {/* Full Name */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Full Name
+            </label>
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setLocalError(null);
+              }}
+              placeholder="John Doe"
+              className="input-base"
+              required
+            />
+          </div>
+
+          {/* Designation */}
+          <div>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-fluid-xs text-white/35 uppercase tracking-widest">
+                Designation
+              </label>
+              {isCustomDesignation && uniqueDesignations.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomDesignation(false);
+                    if (uniqueDesignations.length > 0) {
+                      setDesignation(uniqueDesignations[0]);
+                    }
+                  }}
+                  className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                >
+                  Choose Existing
+                </button>
+              )}
+            </div>
+
+            {isCustomDesignation ? (
+              <input
+                value={designation}
+                onChange={(e) => {
+                  setDesignation(e.target.value);
+                  setLocalError(null);
+                }}
+                placeholder="Sales Associate"
+                className="input-base"
+                required
+              />
+            ) : (
+              <select
+                value={designation}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") {
+                    setIsCustomDesignation(true);
+                    setDesignation("");
+                  } else {
+                    setDesignation(e.target.value);
+                  }
+                  setLocalError(null);
+                }}
+                className="input-base py-3"
+                style={{ colorScheme: "dark" }}
+              >
+                <option value="" disabled>Select Designation...</option>
+                {uniqueDesignations.map((des) => (
+                  <option key={des} value={des}>
+                    {des}
+                  </option>
+                ))}
+                <option value="__new__" className="text-amber-300 font-semibold">
+                  + Add Custom Designation...
+                </option>
+              </select>
+            )}
+          </div>
+
+          {/* Expiry Date */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Expiry Date
+            </label>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              className="input-base"
+              style={{ colorScheme: "dark" }}
+              required
+            />
+          </div>
+        </div>
+
+        {currentError && (
+          <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
+            <p className="text-rose-300 text-xs leading-relaxed">{currentError}</p>
+          </div>
+        )}
+
+        <button type="submit" className="btn-primary w-full">
+          {employee ? "Save Changes" : "Create Record"}
+        </button>
+      </motion.form>
+    </ModalBackdrop>
+  );
+}
+
+/* ─── Employee Detail Modal ─────────────────────────────────────── */
+function EmployeeDetailModal({
+  employee, onClose, onEdit
+}: {
+  employee: Employee; onClose: () => void; onEdit: () => void;
+}) {
+  const isExpired = isBefore(startOfDay(parseISO(employee.expiryDate)), startOfDay(new Date()));
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <motion.div
+        key="detail-modal"
         initial={{ opacity: 0, scale: 0.92, y: 24 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 12 }}
@@ -492,61 +686,56 @@ function EmployeeFormModal({
         </button>
 
         <h3 className="serif italic text-fluid-xl text-white mb-5">
-          {employee ? "Edit Record" : "New Record"}
+          Employee Details
         </h3>
 
-        <div className="space-y-3 mb-5">
-          {[
-            { label: "Employee ID", value: employeeCode, set: setEmployeeCode, placeholder: "5206XX", numeric: true },
-            { label: "Full Name",   value: name,         set: setName,         placeholder: "John Doe"             },
-            { label: "Designation",  value: designation,   set: setDesignation,   placeholder: "Sales Associate"          },
-          ].map(({ label, value, set, placeholder, numeric }) => (
-            <div key={label}>
-              <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
-                {label}
-              </label>
-              <input
-                value={value}
-                onChange={(e) => {
-                  if (numeric) {
-                    set(normalizeEmployeeCode(e.target.value));
-                    setLocalError(null);
-                    return;
-                  }
+        <div className="space-y-4 mb-6">
+          <div className="border-b border-white/05 pb-3">
+            <span className="text-[10px] uppercase tracking-widest text-white/30 block font-mono mb-1">Full Name</span>
+            <span className="text-fluid-base font-semibold text-white/90">{employee.name}</span>
+          </div>
 
-                  set(e.target.value);
-                  setLocalError(null);
-                }}
-                placeholder={placeholder}
-                inputMode={numeric ? "numeric" : undefined}
-                pattern={numeric ? "[0-9]*" : undefined}
-                className={cn("input-base", numeric && "tabular-nums")}
-              />
+          <div className="grid grid-cols-2 gap-4 border-b border-white/05 pb-3">
+            <div>
+              <span className="text-[10px] uppercase tracking-widest text-white/30 block font-mono mb-1">Employee ID</span>
+              <span className="text-fluid-sm font-semibold text-white/90 font-mono">{employee.employeeCode}</span>
             </div>
-          ))}
+            <div>
+              <span className="text-[10px] uppercase tracking-widest text-white/30 block font-mono mb-1">Status</span>
+              <span className={cn(
+                "inline-block px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide",
+                isExpired ? "status-expired" : "status-valid"
+              )}>
+                {isExpired ? "Expired" : "Valid"}
+              </span>
+            </div>
+          </div>
+
+          <div className="border-b border-white/05 pb-3">
+            <span className="text-[10px] uppercase tracking-widest text-white/30 block font-mono mb-1">Designation</span>
+            <span className="text-fluid-sm font-semibold text-white/90">{employee.designation}</span>
+          </div>
+
           <div>
-            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
-              Expiry Date
-            </label>
-            <input
-              type="date"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              className="input-base"
-              style={{ colorScheme: "dark" }}
-            />
+            <span className="text-[10px] uppercase tracking-widest text-white/30 block font-mono mb-1">Expiry Date</span>
+            <span className={cn("text-fluid-sm font-semibold", isExpired ? "text-rose-400" : "text-emerald-400")}>
+              {format(parseISO(employee.expiryDate), "MMMM d, yyyy")}
+            </span>
           </div>
         </div>
 
-        {currentError && (
-          <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
-            <p className="text-rose-300 text-xs leading-relaxed">{currentError}</p>
-          </div>
-        )}
-
-        <button onClick={handleSave} className="btn-primary">
-          {employee ? "Save Changes" : "Create Record"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              onClose();
+              onEdit();
+            }}
+            className="btn-primary flex-1 flex items-center justify-center gap-2"
+          >
+            <Edit2 className="w-4 h-4 opacity-75" />
+            Edit Record
+          </button>
+        </div>
       </motion.div>
     </ModalBackdrop>
   );
