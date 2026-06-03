@@ -8,7 +8,7 @@ At **id-verifier**, we take security seriously and appreciate your help in keepi
 
 **Please do not open public GitHub issues for security vulnerabilities.**
 
-Instead, email us at: **[Add your security contact email here]**
+Instead, email us at: **deveramarkron76@gmail.com**
 
 Include the following information in your report:
 
