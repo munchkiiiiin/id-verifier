@@ -18,6 +18,7 @@ export function useScanLogs() {
       employeeCode: String(row.employee.employee_code),
       name: String(row.employee.name),
       designation: String(row.employee.designation),
+      establishment: String(row.employee.establishment ?? "Fashion Depot"),
       expiryDate: String(row.employee.expiry_date),
       isActive: Boolean(row.employee.is_active),
     } : undefined,
@@ -41,6 +42,7 @@ export function useScanLogs() {
             employee_code,
             name,
             designation,
+            establishment,
             expiry_date,
             is_active
           )

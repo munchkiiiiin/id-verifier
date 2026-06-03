@@ -7,6 +7,7 @@ export type Employee = {
   employeeCode: string; // The explicit display ID (e.g. EMP-1234)
   name: string;
   designation: string;
+  establishment: string;
   expiryDate: string; // YYYY-MM-DD
   isActive: boolean;
 };
@@ -23,6 +24,7 @@ export function useEmployees() {
     employeeCode: String(row.employee_code ?? ""),
     name: String(row.name ?? ""),
     designation: String(row.designation ?? ""),
+    establishment: String(row.establishment ?? "Fashion Depot"),
     expiryDate: String(row.expiry_date ?? ""),
     isActive: Boolean(row.is_active),
   }), []);
@@ -63,7 +65,7 @@ export function useEmployees() {
   const loadEmployees = async () => {
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employee_code, name, designation, expiry_date, is_active")
+      .select("id, employee_code, name, designation, establishment, expiry_date, is_active")
       .order("name", { ascending: true });
 
     if (error) {
@@ -141,6 +143,7 @@ export function useEmployees() {
       employee_code: employeeCode,
       name: employee.name,
       designation: employee.designation,
+      establishment: employee.establishment,
       expiry_date: employee.expiryDate,
       is_active: employee.isActive,
       created_at: now,
@@ -170,6 +173,7 @@ export function useEmployees() {
         employee_code: employeeCode,
         name: employee.name,
         designation: employee.designation,
+        establishment: employee.establishment,
         expiry_date: employee.expiryDate,
         is_active: employee.isActive,
         updated_at: new Date().toISOString(),
@@ -215,7 +219,7 @@ export function useEmployees() {
   const fetchEmployeeByToken = useCallback(async (token: string): Promise<Employee | null> => {
     const { data, error } = await supabase
       .from("employees")
-      .select("id, employee_code, name, designation, expiry_date, is_active")
+      .select("id, employee_code, name, designation, establishment, expiry_date, is_active")
       .eq("id", token)
       .maybeSingle();
 

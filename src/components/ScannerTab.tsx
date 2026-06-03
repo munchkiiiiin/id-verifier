@@ -461,10 +461,17 @@ function LogRow({ entry }: { entry: LogEntry }) {
                 <p className="text-sm text-white/75 font-medium">{emp.designation}</p>
               </div>
               <div>
+                <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Establishment</p>
+                <p className="text-sm text-white/75 font-medium">{emp.establishment}</p>
+              </div>
+              <div>
                 <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Valid Until</p>
                 <p className={cn("text-sm font-semibold", entry.status === "expired" ? "text-rose-400" : "text-emerald-400")}>
                   {format(parseISO(emp.expiryDate), "MMM d, yyyy")}
                 </p>
+              </div>
+              <div>
+                {/* Empty block to maintain grid alignment */}
               </div>
               <div className="col-span-2">
                 <p className="text-xs text-white/25 uppercase tracking-wider mb-1">Scanned At</p>

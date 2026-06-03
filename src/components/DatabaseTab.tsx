@@ -1,4 +1,4 @@
-import { useState, useMemo, type FormEvent, type ReactNode } from "react";
+import { useState, useMemo, useRef, useEffect, type FormEvent, type ReactNode } from "react";
 import { useEmployees, Employee } from "../hooks/useEmployees";
 import { useAuth } from "../hooks/useAuth";
 import { QRCodeCanvas } from "qrcode.react";
@@ -7,7 +7,7 @@ import { cn } from "../lib/utils";
 import { buildEmployeeQrValue } from "../lib/qr";
 import {
   Users, Plus, Trash2, QrCode, X,
-  LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail, Sun, Moon
+  LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail, Sun, Moon, ChevronDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -39,6 +39,102 @@ function isEmployeeCodeInUse(employees: Employee[], employeeCode: string, curren
   );
 }
 
+/* ─── Custom Select Component ───────────────────────────────────── */
+interface CustomSelectOption {
+  value: string;
+  label: string | ReactNode;
+  className?: string;
+}
+
+interface CustomSelectProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: CustomSelectOption[];
+  placeholder?: string;
+  className?: string;
+  triggerClassName?: string;
+}
+
+function CustomSelect({
+  value,
+  onChange,
+  options,
+  className,
+  triggerClassName,
+  placeholder = "Select..."
+}: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  return (
+    <div ref={containerRef} className={cn("relative", className)}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "w-full flex items-center justify-between input-base text-left cursor-pointer transition-all hover:bg-white/[0.03]",
+          triggerClassName
+        )}
+      >
+        <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+        <ChevronDown className={cn("w-3.5 h-3.5 ml-1.5 opacity-40 transition-transform duration-200 flex-shrink-0", isOpen && "rotate-180")} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.96 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="absolute z-50 w-full mt-1 bg-brand-bg-dark border border-brand-border rounded-2xl shadow-2xl py-1 max-h-60 overflow-y-auto"
+            style={{
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+            }}
+          >
+            {options.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "w-full text-left px-3.5 py-2 text-fluid-xs transition-colors flex items-center justify-between cursor-pointer",
+                  opt.value === value
+                    ? "bg-amber-500/15 text-amber-300 font-semibold hover:bg-amber-500/20"
+                    : "text-white/80 hover:text-white hover:bg-white/[0.06] dark:text-white/80 dark:hover:text-white dark:hover:bg-white/[0.06] light:text-slate-800 light:hover:text-slate-950 light:hover:bg-black/[0.05]",
+                  opt.className
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ─── DatabaseTab ───────────────────────────────────────────────── */
 export function DatabaseTab({
   theme,
@@ -54,20 +150,35 @@ export function DatabaseTab({
   const [showDetailsFor, setShowDetailsFor] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  type SortOption = "name" | "employeeCode" | "designation" | "expiryDate";
+  type SortOption = "name" | "employeeCode" | "designation" | "establishment" | "expiryDate";
   type StatusFilterOption = "all" | "valid" | "expired";
 
   const [sortBy, setSortBy] = useState<SortOption>("name");
   const [filterStatus, setFilterStatus] = useState<StatusFilterOption>("all");
   const [filterDesignation, setFilterDesignation] = useState<string>("all");
+  const [filterEstablishment, setFilterEstablishment] = useState<string>("all");
 
   const uniqueDesignations = Array.from(
     new Set(employees.map((e) => e.designation).filter(Boolean))
   ).sort();
 
+  const defaultEstablishments = useMemo(() => ["Fashion Depot", "Thrifter's Haven", "Finders Runway"], []);
+  const uniqueEstablishments = useMemo(() => {
+    const list = Array.from(
+      new Set(employees.map((e) => e.establishment).filter(Boolean))
+    );
+    defaultEstablishments.forEach((est) => {
+      if (!list.includes(est)) list.push(est);
+    });
+    return list.sort();
+  }, [employees, defaultEstablishments]);
+
   const filteredEmployees = employees
     .filter((emp) => {
       if (filterDesignation !== "all" && emp.designation !== filterDesignation) {
+        return false;
+      }
+      if (filterEstablishment !== "all" && emp.establishment !== filterEstablishment) {
         return false;
       }
       if (filterStatus !== "all") {
@@ -88,6 +199,9 @@ export function DatabaseTab({
       }
       if (sortBy === "designation") {
         return a.designation.localeCompare(b.designation);
+      }
+      if (sortBy === "establishment") {
+        return a.establishment.localeCompare(b.establishment);
       }
       if (sortBy === "expiryDate") {
         return a.expiryDate.localeCompare(b.expiryDate);
@@ -222,52 +336,69 @@ export function DatabaseTab({
           </div>
 
           {/* Controls toolbar */}
-          <div className="grid grid-cols-3 gap-2 pt-1">
+          <div className="grid grid-cols-4 gap-2 pt-1">
             {/* Sort */}
-            <div className="flex flex-col">
+            <div className="flex flex-col bg-transparent">
               <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Sort By</label>
-              <select
+              <CustomSelect
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="input-base py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
-                style={{ colorScheme: "dark" }}
-              >
-                <option value="name">Name (A-Z)</option>
-                <option value="employeeCode">Employee ID</option>
-                <option value="designation">Designation</option>
-                <option value="expiryDate">Expiry Date</option>
-              </select>
+                onChange={(val) => setSortBy(val as SortOption)}
+                options={[
+                  { value: "name", label: "Name (A-Z)" },
+                  { value: "employeeCode", label: "Employee ID" },
+                  { value: "designation", label: "Designation" },
+                  { value: "establishment", label: "Establishment" },
+                  { value: "expiryDate", label: "Expiry Date" },
+                ]}
+                className="text-fluid-xs"
+                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+              />
             </div>
 
             {/* Filter Status */}
-            <div className="flex flex-col">
+            <div className="flex flex-col bg-transparent">
               <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Status</label>
-              <select
+              <CustomSelect
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as StatusFilterOption)}
-                className="input-base py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
-                style={{ colorScheme: "dark" }}
-              >
-                <option value="all">All</option>
-                <option value="valid">Valid Only</option>
-                <option value="expired">Expired Only</option>
-              </select>
+                onChange={(val) => setFilterStatus(val as StatusFilterOption)}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "valid", label: "Valid Only" },
+                  { value: "expired", label: "Expired Only" },
+                ]}
+                className="text-fluid-xs"
+                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+              />
             </div>
 
             {/* Filter Designation */}
-            <div className="flex flex-col">
+            <div className="flex flex-col bg-transparent">
               <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Designation</label>
-              <select
+              <CustomSelect
                 value={filterDesignation}
-                onChange={(e) => setFilterDesignation(e.target.value)}
-                className="input-base py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
-                style={{ colorScheme: "dark" }}
-              >
-                <option value="all">All</option>
-                {uniqueDesignations.map((des) => (
-                  <option key={des} value={des}>{des}</option>
-                ))}
-              </select>
+                onChange={(val) => setFilterDesignation(val)}
+                options={[
+                  { value: "all", label: "All" },
+                  ...uniqueDesignations.map((des) => ({ value: des as string, label: des as string })),
+                ]}
+                className="text-fluid-xs"
+                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+              />
+            </div>
+
+            {/* Filter Establishment */}
+            <div className="flex flex-col bg-transparent">
+              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Establishment</label>
+              <CustomSelect
+                value={filterEstablishment}
+                onChange={(val) => setFilterEstablishment(val)}
+                options={[
+                  { value: "all", label: "All" },
+                  ...uniqueEstablishments.map((est) => ({ value: est as string, label: est as string })),
+                ]}
+                className="text-fluid-xs"
+                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+              />
             </div>
           </div>
         </div>
@@ -303,6 +434,7 @@ export function DatabaseTab({
               onClick={() => {
                 setFilterStatus("all");
                 setFilterDesignation("all");
+                setFilterEstablishment("all");
               }}
               className="text-fluid-xs text-amber-300/60 hover:text-amber-300 transition-colors uppercase tracking-wider"
             >
@@ -412,6 +544,8 @@ function EmployeeCard({
           <span className="text-fluid-xs text-white/35 font-mono">{employee.employeeCode}</span>
           <span className="text-white/20 text-[10px]">•</span>
           <span className="text-fluid-xs text-white/30">{employee.designation}</span>
+          <span className="text-white/20 text-[10px]">•</span>
+          <span className="text-fluid-xs text-white/25">{employee.establishment}</span>
         </div>
         <p className="text-fluid-xs text-white/20 mt-1">
           Expires {format(parseISO(employee.expiryDate), "MMM d, yyyy")}
@@ -467,6 +601,7 @@ function EmployeeFormModal({
   );
   const [name,       setName]       = useState(employee?.name || "");
   const [designation, setDesignation] = useState(employee?.designation || "");
+  const [establishment, setEstablishment] = useState(employee?.establishment || "Fashion Depot");
   const [expiryDate, setExpiryDate] = useState(
     employee?.expiryDate || format(addYears(new Date(), 1), "yyyy-MM-dd")
   );
@@ -480,6 +615,21 @@ function EmployeeFormModal({
 
   const [isCustomDesignation, setIsCustomDesignation] = useState(
     () => !employee || !uniqueDesignations.includes(employee.designation)
+  );
+
+  const defaultEstablishments = useMemo(() => ["Fashion Depot", "Thrifter's Haven", "Finders Runway"], []);
+  const uniqueEstablishments = useMemo(() => {
+    const list = Array.from(
+      new Set(employees.map((e) => e.establishment).filter(Boolean))
+    );
+    defaultEstablishments.forEach((est) => {
+      if (!list.includes(est)) list.push(est);
+    });
+    return list.sort();
+  }, [employees, defaultEstablishments]);
+
+  const [isCustomEstablishment, setIsCustomEstablishment] = useState(
+    () => !employee || !uniqueEstablishments.includes(employee.establishment)
   );
 
   const currentError = errorMessage ?? localError;
@@ -502,13 +652,13 @@ function EmployeeFormModal({
       return;
     }
 
-    if (!name || !designation || !expiryDate) {
+    if (!name || !designation || !establishment || !expiryDate) {
       setLocalError("Please complete all required fields.");
       return;
     }
 
     setLocalError(null);
-    onSave({ id: employee?.id || crypto.randomUUID(), employeeCode: normalizedEmployeeCode, name, designation, expiryDate, isActive: true });
+    onSave({ id: employee?.id || crypto.randomUUID(), employeeCode: normalizedEmployeeCode, name, designation, establishment, expiryDate, isActive: true });
   };
 
   return (
@@ -605,30 +755,79 @@ function EmployeeFormModal({
                 required
               />
             ) : (
-              <select
+              <CustomSelect
                 value={designation}
-                onChange={(e) => {
-                  if (e.target.value === "__new__") {
+                onChange={(val) => {
+                  if (val === "__new__") {
                     setIsCustomDesignation(true);
                     setDesignation("");
                   } else {
-                    setDesignation(e.target.value);
+                    setDesignation(val);
                   }
                   setLocalError(null);
                 }}
-                className="input-base py-3"
-                style={{ colorScheme: "dark" }}
-              >
-                <option value="" disabled>Select Designation...</option>
-                {uniqueDesignations.map((des) => (
-                  <option key={des} value={des}>
-                    {des}
-                  </option>
-                ))}
-                <option value="__new__" className="text-amber-300 font-semibold">
-                  + Add Custom Designation...
-                </option>
-              </select>
+                options={[
+                  ...uniqueDesignations.map((des) => ({ value: des as string, label: des as string })),
+                  { value: "__new__", label: "+ Add Custom Designation...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
+                ]}
+                placeholder="Select Designation..."
+                triggerClassName="py-3"
+              />
+            )}
+          </div>
+
+          {/* Establishment */}
+          <div>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-fluid-xs text-white/35 uppercase tracking-widest">
+                Establishment
+              </label>
+              {isCustomEstablishment && uniqueEstablishments.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomEstablishment(false);
+                    if (uniqueEstablishments.length > 0) {
+                      setEstablishment(uniqueEstablishments[0]);
+                    }
+                  }}
+                  className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                >
+                  Choose Existing
+                </button>
+              )}
+            </div>
+
+            {isCustomEstablishment ? (
+              <input
+                value={establishment}
+                onChange={(e) => {
+                  setEstablishment(e.target.value);
+                  setLocalError(null);
+                }}
+                placeholder="Fashion Depot"
+                className="input-base"
+                required
+              />
+            ) : (
+              <CustomSelect
+                value={establishment}
+                onChange={(val) => {
+                  if (val === "__new__") {
+                    setIsCustomEstablishment(true);
+                    setEstablishment("");
+                  } else {
+                    setEstablishment(val);
+                  }
+                  setLocalError(null);
+                }}
+                options={[
+                  ...uniqueEstablishments.map((est) => ({ value: est as string, label: est as string })),
+                  { value: "__new__", label: "+ Add Custom Establishment...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
+                ]}
+                placeholder="Select Establishment..."
+                triggerClassName="py-3"
+              />
             )}
           </div>
 
@@ -714,6 +913,11 @@ function EmployeeDetailModal({
           <div className="border-b border-white/05 pb-3">
             <span className="text-[10px] uppercase tracking-widest text-white/30 block font-mono mb-1">Designation</span>
             <span className="text-fluid-sm font-semibold text-white/90">{employee.designation}</span>
+          </div>
+
+          <div className="border-b border-white/05 pb-3">
+            <span className="text-[10px] uppercase tracking-widest text-white/30 block font-mono mb-1">Establishment</span>
+            <span className="text-fluid-sm font-semibold text-white/90">{employee.establishment}</span>
           </div>
 
           <div>

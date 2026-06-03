@@ -270,6 +270,10 @@ export function ReportsTab({ scanLog, onClearLogs, theme, onToggleTheme }: Repor
                                           <p className="text-white/70 font-medium">{emp.designation}</p>
                                         </div>
                                         <div>
+                                          <p className="text-white/20 uppercase tracking-widest font-semibold mb-0.5">Establishment</p>
+                                          <p className="text-white/70 font-medium">{emp.establishment}</p>
+                                        </div>
+                                        <div>
                                           <p className="text-white/20 uppercase tracking-widest font-semibold mb-0.5">Validity Expiry</p>
                                           <p className={cn("font-bold", log.status === "expired" ? "text-rose-400" : "text-emerald-400")}>
                                             {format(new Date(emp.expiryDate), "MMMM d, yyyy")}
@@ -284,7 +288,7 @@ export function ReportsTab({ scanLog, onClearLogs, theme, onToggleTheme }: Repor
                                         </p>
                                       </div>
                                     )}
-                                    <div className={cn(emp ? "" : "col-span-2")}>
+                                    <div className="col-span-2">
                                       <p className="text-white/20 uppercase tracking-widest font-semibold mb-0.5">Scan Exact Time</p>
                                       <p className="text-white/50 font-mono">{format(log.timestamp, "MMMM d, yyyy — hh:mm:ss a")}</p>
                                     </div>
