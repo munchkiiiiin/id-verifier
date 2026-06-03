@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, type FormEvent, type ReactNode } from "react";
 import { useEmployees, Employee } from "../hooks/useEmployees";
 import { useAuth } from "../hooks/useAuth";
+import { supabase, createTempAuthClient } from "../lib/supabase";
 import { QRCodeCanvas } from "qrcode.react";
 import { format, parseISO, isBefore, startOfDay, addYears } from "date-fns";
 import { cn } from "../lib/utils";
@@ -144,11 +145,107 @@ export function DatabaseTab({
   onToggleTheme?: () => void;
 }) {
   const { employees, addEmployee, removeEmployee, updateEmployee, accessDenied, errorMessage } = useEmployees();
-  const { user, loginWithEmail, logout, loading, authLoading, error: authError } = useAuth();
+  const { user, loginWithEmail, logout, loading, authLoading, error: authError, isSuperAdmin } = useAuth();
+  
+  // Super Admin states
+  const [subTab, setSubTab] = useState<"employees" | "admins">("employees");
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+
   const [showQRFor,   setShowQRFor]   = useState<string | null>(null);
   const [showFormFor, setShowFormFor] = useState<Employee | "new" | null>(null);
   const [showDetailsFor, setShowDetailsFor] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Load admins when subTab is admins
+  useEffect(() => {
+    if (user && isSuperAdmin && subTab === "admins") {
+      void fetchAdminUsers();
+    }
+  }, [user, isSuperAdmin, subTab]);
+
+  const fetchAdminUsers = async () => {
+    setLoadingAdmins(true);
+    setAdminError(null);
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, email, display_name, is_admin, is_super_admin, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setAdminUsers(data || []);
+    } catch (err) {
+      setAdminError(err instanceof Error ? err.message : "Failed to load admin accounts.");
+    } finally {
+      setLoadingAdmins(false);
+    }
+  };
+
+  const handleAddAdmin = async (email: string, displayName: string, password: string) => {
+    const tempClient = createTempAuthClient();
+    try {
+      // 1. Sign up in Supabase Auth
+      const { data, error: signUpError } = await tempClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: displayName,
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+      if (!data.user) throw new Error("Failed to register account.");
+
+      // 2. Insert into public.users
+      const { error: dbError } = await supabase
+        .from("users")
+        .insert({
+          id: data.user.id,
+          email,
+          display_name: displayName,
+          is_admin: true,
+          is_super_admin: false,
+        });
+
+      if (dbError) {
+        console.error("Database user insertion failed:", dbError);
+        throw new Error(`Auth account created, but profile insert failed: ${dbError.message}`);
+      }
+
+      await fetchAdminUsers();
+      setShowAddAdminModal(false);
+    } catch (err) {
+      console.error("Error creating admin account:", err);
+      throw err;
+    }
+  };
+
+  const handleDeleteAdmin = async (adminId: string, email: string) => {
+    if (adminId === user?.id) {
+      alert("You cannot delete your own account.");
+      return;
+    }
+    if (!confirm(`Are you sure you want to revoke admin access for ${email}?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", adminId);
+
+      if (error) throw error;
+      await fetchAdminUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete admin account.");
+    }
+  };
 
   type SortOption = "name" | "employeeCode" | "designation" | "establishment" | "expiryDate";
   type StatusFilterOption = "all" | "valid" | "expired";
@@ -303,7 +400,7 @@ export function DatabaseTab({
               )}
             </button>
             <button
-              onClick={openNewForm}
+              onClick={subTab === "admins" ? () => setShowAddAdminModal(true) : openNewForm}
               className="flex items-center gap-1.5 glass glass-hover active:scale-95 transition-all rounded-xl px-3 py-2 text-white/70 hover:text-amber-300 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -319,148 +416,220 @@ export function DatabaseTab({
           </div>
         </div>
 
+        {/* Tab switcher for Super Admin */}
+        {isSuperAdmin && (
+          <div className="flex gap-1.5 p-1 glass rounded-2xl border border-white/06 w-fit mb-3 mt-1">
+            <button
+              onClick={() => setSubTab("employees")}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-fluid-xs font-semibold uppercase tracking-wider transition-all cursor-pointer",
+                subTab === "employees"
+                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                  : "text-white/40 hover:text-white/70 border border-transparent"
+              )}
+            >
+              Employees
+            </button>
+            <button
+              onClick={() => setSubTab("admins")}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-fluid-xs font-semibold uppercase tracking-wider transition-all cursor-pointer",
+                subTab === "admins"
+                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                  : "text-white/40 hover:text-white/70 border border-transparent"
+              )}
+            >
+              Admin Accounts
+            </button>
+          </div>
+        )}
+
         {/* Status indicator & sorting/filtering */}
         <div className="flex flex-col gap-3 mt-3">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 glass rounded-full px-3 py-1 border border-emerald-500/20">
-              <Wifi className="w-3 h-3 text-emerald-400" />
-              <span className="text-fluid-xs text-emerald-400 font-medium">Cloud Active</span>
-            </span>
-            <span className="text-fluid-xs text-white/25">
-              {filteredEmployees.length === employees.length ? (
-                `${employees.length} ${employees.length === 1 ? "record" : "records"}`
-              ) : (
-                `${filteredEmployees.length} of ${employees.length} records (filtered)`
-              )}
-            </span>
-          </div>
+          {subTab === "employees" ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 glass rounded-full px-3 py-1 border border-emerald-500/20">
+                  <Wifi className="w-3 h-3 text-emerald-400" />
+                  <span className="text-fluid-xs text-emerald-400 font-medium">Cloud Active</span>
+                </span>
+                <span className="text-fluid-xs text-white/25">
+                  {filteredEmployees.length === employees.length ? (
+                    `${employees.length} ${employees.length === 1 ? "record" : "records"}`
+                  ) : (
+                    `${filteredEmployees.length} of ${employees.length} records (filtered)`
+                  )}
+                </span>
+              </div>
 
-          {/* Controls toolbar */}
-          <div className="grid grid-cols-4 gap-2 pt-1">
-            {/* Sort */}
-            <div className="flex flex-col bg-transparent">
-              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Sort By</label>
-              <CustomSelect
-                value={sortBy}
-                onChange={(val) => setSortBy(val as SortOption)}
-                options={[
-                  { value: "name", label: "Name (A-Z)" },
-                  { value: "employeeCode", label: "Employee ID" },
-                  { value: "designation", label: "Designation" },
-                  { value: "establishment", label: "Establishment" },
-                  { value: "expiryDate", label: "Expiry Date" },
-                ]}
-                className="text-fluid-xs"
-                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
-              />
-            </div>
+              {/* Controls toolbar */}
+              <div className="grid grid-cols-4 gap-2 pt-1">
+                {/* Sort */}
+                <div className="flex flex-col bg-transparent">
+                  <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Sort By</label>
+                  <CustomSelect
+                    value={sortBy}
+                    onChange={(val) => setSortBy(val as SortOption)}
+                    options={[
+                      { value: "name", label: "Name (A-Z)" },
+                      { value: "employeeCode", label: "Employee ID" },
+                      { value: "designation", label: "Designation" },
+                      { value: "establishment", label: "Establishment" },
+                      { value: "expiryDate", label: "Expiry Date" },
+                    ]}
+                    className="text-fluid-xs"
+                    triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+                  />
+                </div>
 
-            {/* Filter Status */}
-            <div className="flex flex-col bg-transparent">
-              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Status</label>
-              <CustomSelect
-                value={filterStatus}
-                onChange={(val) => setFilterStatus(val as StatusFilterOption)}
-                options={[
-                  { value: "all", label: "All" },
-                  { value: "valid", label: "Valid Only" },
-                  { value: "expired", label: "Expired Only" },
-                ]}
-                className="text-fluid-xs"
-                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
-              />
-            </div>
+                {/* Filter Status */}
+                <div className="flex flex-col bg-transparent">
+                  <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Status</label>
+                  <CustomSelect
+                    value={filterStatus}
+                    onChange={(val) => setFilterStatus(val as StatusFilterOption)}
+                    options={[
+                      { value: "all", label: "All" },
+                      { value: "valid", label: "Valid Only" },
+                      { value: "expired", label: "Expired Only" },
+                    ]}
+                    className="text-fluid-xs"
+                    triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+                  />
+                </div>
 
-            {/* Filter Designation */}
-            <div className="flex flex-col bg-transparent">
-              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Designation</label>
-              <CustomSelect
-                value={filterDesignation}
-                onChange={(val) => setFilterDesignation(val)}
-                options={[
-                  { value: "all", label: "All" },
-                  ...uniqueDesignations.map((des) => ({ value: des as string, label: des as string })),
-                ]}
-                className="text-fluid-xs"
-                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
-              />
-            </div>
+                {/* Filter Designation */}
+                <div className="flex flex-col bg-transparent">
+                  <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Designation</label>
+                  <CustomSelect
+                    value={filterDesignation}
+                    onChange={(val) => setFilterDesignation(val)}
+                    options={[
+                      { value: "all", label: "All" },
+                      ...uniqueDesignations.map((des) => ({ value: des as string, label: des as string })),
+                    ]}
+                    className="text-fluid-xs"
+                    triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+                  />
+                </div>
 
-            {/* Filter Establishment */}
-            <div className="flex flex-col bg-transparent">
-              <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Establishment</label>
-              <CustomSelect
-                value={filterEstablishment}
-                onChange={(val) => setFilterEstablishment(val)}
-                options={[
-                  { value: "all", label: "All" },
-                  ...uniqueEstablishments.map((est) => ({ value: est as string, label: est as string })),
-                ]}
-                className="text-fluid-xs"
-                triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
-              />
+                {/* Filter Establishment */}
+                <div className="flex flex-col bg-transparent">
+                  <label className="text-[9px] uppercase tracking-[0.15em] text-white/30 mb-1 font-bold font-mono">Establishment</label>
+                  <CustomSelect
+                    value={filterEstablishment}
+                    onChange={(val) => setFilterEstablishment(val)}
+                    options={[
+                      { value: "all", label: "All" },
+                      ...uniqueEstablishments.map((est) => ({ value: est as string, label: est as string })),
+                    ]}
+                    className="text-fluid-xs"
+                    triggerClassName="py-1.5 px-2 bg-black/40 border-white/06 text-fluid-xs rounded-xl focus:border-amber-500/40"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 glass rounded-full px-3 py-1 border border-emerald-500/20">
+                <Shield className="w-3 h-3 text-emerald-400" />
+                <span className="text-fluid-xs text-emerald-400 font-medium">Secure Role Access</span>
+              </span>
+              <span className="text-fluid-xs text-white/25">
+                {adminUsers.length} admin {adminUsers.length === 1 ? "account" : "accounts"}
+              </span>
             </div>
-          </div>
+          )}
         </div>
       </header>
 
-      {/* Scrollable employee list */}
+      {/* Scrollable list */}
       <div className="flex-1 scroll-smooth-y px-5 py-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 auto-rows-max content-start">
-
-        {employees.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3 col-span-full"
-          >
-            <Users className="w-9 h-9 opacity-40" />
-            <p className="text-fluid-sm">No records yet</p>
-            <button
-              onClick={openNewForm}
-              className="text-fluid-xs text-amber-300/60 hover:text-amber-300 transition-colors uppercase tracking-wider"
+        {subTab === "employees" ? (
+          employees.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3 col-span-full"
             >
-              + Add first record
-            </button>
-          </motion.div>
-        ) : filteredEmployees.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3 col-span-full text-center"
-          >
-            <Users className="w-9 h-9 opacity-40" />
-            <p className="text-fluid-sm">No matching records found</p>
-            <button
-              onClick={() => {
-                setFilterStatus("all");
-                setFilterDesignation("all");
-                setFilterEstablishment("all");
-              }}
-              className="text-fluid-xs text-amber-300/60 hover:text-amber-300 transition-colors uppercase tracking-wider"
-            >
-              Clear Filters
-            </button>
-          </motion.div>
-        ) : (
-          <AnimatePresence>
-            {filteredEmployees.map((emp, i) => (
-              <motion.div
-                key={emp.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ delay: i * 0.04 }}
+              <Users className="w-9 h-9 opacity-40" />
+              <p className="text-fluid-sm">No records yet</p>
+              <button
+                onClick={openNewForm}
+                className="text-fluid-xs text-amber-300/60 hover:text-amber-300 transition-colors uppercase tracking-wider"
               >
-                <EmployeeCard
-                  employee={emp}
-                  onEdit={() => openEditForm(emp)}
-                  onDelete={() => removeEmployee(emp.id)}
-                  onShowQR={() => setShowQRFor(emp.id)}
-                  onShowDetails={() => setShowDetailsFor(emp)}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                + Add first record
+              </button>
+            </motion.div>
+          ) : filteredEmployees.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3 col-span-full text-center"
+            >
+              <Users className="w-9 h-9 opacity-40" />
+              <p className="text-fluid-sm">No matching records found</p>
+              <button
+                onClick={() => {
+                  setFilterStatus("all");
+                  setFilterDesignation("all");
+                  setFilterEstablishment("all");
+                }}
+                className="text-fluid-xs text-amber-300/60 hover:text-amber-300 transition-colors uppercase tracking-wider"
+              >
+                Clear Filters
+              </button>
+            </motion.div>
+          ) : (
+            <AnimatePresence>
+              {filteredEmployees.map((emp, i) => (
+                <motion.div
+                  key={emp.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <EmployeeCard
+                    employee={emp}
+                    onEdit={() => openEditForm(emp)}
+                    onDelete={() => removeEmployee(emp.id)}
+                    onShowQR={() => setShowQRFor(emp.id)}
+                    onShowDetails={() => setShowDetailsFor(emp)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )
+        ) : (
+          loadingAdmins ? (
+            <div className="flex justify-center items-center py-16 col-span-full">
+              <div className="w-8 h-8 border-2 border-amber-200/20 border-t-amber-300 rounded-full animate-spin" />
+            </div>
+          ) : adminUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 border border-white/06 rounded-3xl border-dashed text-white/25 gap-3 col-span-full">
+              <Shield className="w-9 h-9 opacity-40" />
+              <p className="text-fluid-sm">No admin accounts found</p>
+            </div>
+          ) : (
+            <AnimatePresence>
+              {adminUsers.map((admin, i) => (
+                <motion.div
+                  key={admin.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <AdminCard
+                    admin={admin}
+                    currentUser={user}
+                    onDelete={() => handleDeleteAdmin(admin.id, admin.email)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )
         )}
       </div>
 
@@ -495,6 +664,12 @@ export function DatabaseTab({
             employee={showDetailsFor}
             onClose={() => setShowDetailsFor(null)}
             onEdit={() => openEditForm(showDetailsFor)}
+          />
+        )}
+        {showAddAdminModal && (
+          <AddAdminModal
+            onClose={() => setShowAddAdminModal(false)}
+            onSave={handleAddAdmin}
           />
         )}
       </AnimatePresence>
@@ -1151,5 +1326,223 @@ function LoginForm({
         </p>
       </motion.div>
     </div>
+  );
+}
+
+/* ─── Admin Card ────────────────────────────────────────────────── */
+function AdminCard({
+  admin,
+  currentUser,
+  onDelete
+}: {
+  admin: {
+    id: string;
+    email: string;
+    display_name?: string;
+    is_admin: boolean;
+    is_super_admin: boolean;
+    created_at: string;
+  };
+  currentUser: any;
+  onDelete: () => void;
+}) {
+  const isMe = admin.id === currentUser?.id;
+  const roleName = admin.is_super_admin ? "Super Admin" : admin.is_admin ? "Admin" : "User";
+  const dateStr = admin.created_at ? format(parseISO(admin.created_at), "MMM d, yyyy") : "";
+
+  return (
+    <div
+      className={cn(
+        "glass rounded-2xl p-4 flex items-center gap-3 border border-white/06 hover:border-white/10 hover:bg-white/05 transition-all text-left",
+        isMe && "border-amber-500/20 bg-amber-500/02"
+      )}
+    >
+      {/* Icon representing user role */}
+      <div className="flex-shrink-0">
+        <div className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center border",
+          admin.is_super_admin
+            ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+            : "border-white/10 bg-white/05 text-white/70"
+        )}>
+          <Shield className="w-5 h-5" />
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-fluid-sm font-semibold text-white/90 truncate">
+            {admin.display_name || "Unnamed Account"}
+          </p>
+          {isMe && (
+            <span className="text-[9px] font-bold uppercase tracking-wider bg-white/10 text-white/70 px-1.5 py-0.5 rounded">
+              You
+            </span>
+          )}
+        </div>
+        <p className="text-fluid-xs text-white/40 truncate font-mono mt-0.5">{admin.email}</p>
+        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          <span className={cn(
+            "text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded",
+            admin.is_super_admin
+              ? "bg-amber-500/15 text-amber-300"
+              : "bg-emerald-500/15 text-emerald-400"
+          )}>
+            {roleName}
+          </span>
+          {dateStr && (
+            <>
+              <span className="text-white/20 text-[10px]">•</span>
+              <span className="text-[10px] text-white/30 font-medium">Created {dateStr}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex-shrink-0">
+        {!isMe && !admin.is_super_admin && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
+            title="Revoke Admin Access"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Add Admin Modal ───────────────────────────────────────────── */
+function AddAdminModal({
+  onClose,
+  onSave
+}: {
+  onClose: () => void;
+  onSave: (email: string, displayName: string, password: string) => Promise<void>;
+}) {
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !displayName.trim() || !password) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await onSave(email.trim(), displayName.trim(), password);
+    } catch (err: any) {
+      setError(err?.message || "Failed to create admin account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <motion.form
+        onSubmit={handleSubmit}
+        key="add-admin-modal"
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: "spring", damping: 22, stiffness: 300 }}
+        className="glass rounded-[2rem] p-6 w-full max-w-sm border border-white/10 relative mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" onClick={onClose} className="absolute top-5 right-5 btn-icon">
+          <X className="w-4 h-4" />
+        </button>
+
+        <h3 className="serif italic text-fluid-xl text-white mb-5">
+          New Admin Account
+        </h3>
+
+        <div className="space-y-3 mb-5">
+          {/* Full Name */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Full Name
+            </label>
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Admin Name"
+              className="input-base"
+              required
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@example.com"
+              className="input-base"
+              required
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="input-base pr-11"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/60 transition-colors"
+              >
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
+            <p className="text-rose-300 text-xs leading-relaxed">{error}</p>
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              Creating Account…
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              Create Admin
+            </>
+          )}
+        </button>
+      </motion.form>
+    </ModalBackdrop>
   );
 }

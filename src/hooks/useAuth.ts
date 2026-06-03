@@ -53,38 +53,45 @@ async function syncUserProfile(user: User) {
   }
 }
 
-async function loadUserAdminState(userId: string): Promise<boolean> {
+async function loadUserAdminState(userId: string): Promise<{ isAdmin: boolean; isSuperAdmin: boolean }> {
   const { data, error } = await supabase
     .from("users")
-    .select("is_admin")
+    .select("is_admin, is_super_admin")
     .eq("id", userId)
     .maybeSingle();
 
   if (error) {
     console.error("Profile lookup failed:", error.message);
-    return false;
+    return { isAdmin: false, isSuperAdmin: false };
   }
 
-  return Boolean(data?.is_admin);
+  return {
+    isAdmin: Boolean(data?.is_admin),
+    isSuperAdmin: Boolean(data?.is_super_admin),
+  };
 }
 
 export function useAuth() {
-  const [user,        setUser]        = useState<User | null>(null);
-  const [isAdmin,     setIsAdmin]     = useState(false);
-  const [loading,     setLoading]     = useState(true);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
+  const [user,          setUser]          = useState<User | null>(null);
+  const [isAdmin,       setIsAdmin]       = useState(false);
+  const [isSuperAdmin,  setIsSuperAdmin]  = useState(false);
+  const [loading,       setLoading]       = useState(true);
+  const [authLoading,   setAuthLoading]   = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
 
   const applySessionUser = async (currentUser: User | null) => {
     setUser(currentUser);
     if (!currentUser) {
       setIsAdmin(false);
+      setIsSuperAdmin(false);
       setLoading(false);
       return;
     }
 
     await syncUserProfile(currentUser);
-    setIsAdmin(await loadUserAdminState(currentUser.id));
+    const roles = await loadUserAdminState(currentUser.id);
+    setIsAdmin(roles.isAdmin || roles.isSuperAdmin);
+    setIsSuperAdmin(roles.isSuperAdmin);
     setLoading(false);
   };
 
@@ -156,6 +163,7 @@ export function useAuth() {
   return {
     user,
     isAdmin,
+    isSuperAdmin,
     loading,
     authLoading,
     loginWithEmail,

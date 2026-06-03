@@ -20,3 +20,17 @@ export const supabase = createClient(
     },
   }
 );
+
+export const createTempAuthClient = () => {
+  return createClient(
+    supabaseUrl ?? "https://invalid-project.supabase.co",
+    supabaseAnonKey ?? "invalid-anon-key",
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    }
+  );
+};

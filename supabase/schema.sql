@@ -22,12 +22,16 @@ create table if not exists public.users (
   email text not null,
   display_name text not null default '',
   is_admin boolean not null default false,
+  is_super_admin boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 alter table public.users
   add column if not exists is_admin boolean not null default false;
+
+alter table public.users
+  add column if not exists is_super_admin boolean not null default false;
 
 create or replace function public.is_admin_user()
 returns boolean
@@ -40,7 +44,22 @@ as $$
     select 1
     from public.users
     where id = auth.uid()
-      and is_admin = true
+      and (is_admin = true or is_super_admin = true)
+  );
+$$;
+
+create or replace function public.is_super_admin_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.users
+    where id = auth.uid()
+      and is_super_admin = true
   );
 $$;
 
@@ -75,6 +94,14 @@ on public.users for all
 to authenticated
 using (id = auth.uid())
 with check (id = auth.uid());
+
+-- Super admins can manage all profiles.
+drop policy if exists "super admins can manage profiles" on public.users;
+create policy "super admins can manage profiles"
+on public.users for all
+to authenticated
+using (public.is_super_admin_user())
+with check (public.is_super_admin_user());
 
 -- Create scan logs table
 create table if not exists public.scan_logs (
