@@ -1,4 +1,4 @@
-import { Shield, Sun, Moon, X, Info } from "lucide-react";
+import { Shield, Sun, Moon, X, Info, Download, Smartphone } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
 
@@ -6,9 +6,17 @@ interface SettingsModalProps {
   onClose: () => void;
   theme: "dark" | "light";
   onToggleTheme: () => void;
+  deferredPrompt: any;
+  onClearInstallPrompt: () => void;
 }
 
-export function SettingsModal({ onClose, theme, onToggleTheme }: SettingsModalProps) {
+export function SettingsModal({
+  onClose,
+  theme,
+  onToggleTheme,
+  deferredPrompt,
+  onClearInstallPrompt
+}: SettingsModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md"
@@ -80,6 +88,43 @@ export function SettingsModal({ onClose, theme, onToggleTheme }: SettingsModalPr
                 <Moon className="w-3.5 h-3.5" />
                 Dark
               </button>
+            </div>
+          </div>
+
+          {/* Section: Download & Install */}
+          <div className="rounded-2xl border border-white/05 bg-black/15 p-4 space-y-3">
+            <h4 className="text-fluid-xs font-bold uppercase tracking-wider text-white/70 mb-1 flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5 opacity-60" />
+              Get the App
+            </h4>
+            
+            <div className="flex flex-col gap-2">
+              {deferredPrompt && (
+                <button
+                  onClick={async () => {
+                    if (!deferredPrompt) return;
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                      onClearInstallPrompt();
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-fluid-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/15 text-emerald-400 border border-emerald-500/20 shadow-sm transition-all cursor-pointer"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  Install Web App
+                </button>
+              )}
+              
+              <a
+                href="https://github.com/munchkiiiiin/id-verifier/releases/latest/download/app-debug.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-fluid-xs font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 shadow-sm transition-all cursor-pointer text-center"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download Android APK
+              </a>
             </div>
           </div>
 

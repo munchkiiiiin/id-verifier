@@ -21,11 +21,18 @@ export default defineConfig(() => {
           theme_color: '#000000',
           background_color: '#000000',
           display: 'standalone',
-          // Icons were removed because the image files are not present in the
-          // repository (they caused 404s in production). If you want PWA icons,
-          // add `pwa-192x192.png` and `pwa-512x512.png` to the project root or
-          // `public/` and restore these entries.
-          icons: []
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png'
+            }
+          ]
         }
       })
     ],

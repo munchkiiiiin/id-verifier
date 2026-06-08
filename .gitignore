@@ -7,7 +7,5 @@ coverage/
 .env*
 !.env.example
 .vscode/
-android/
 scripts/
-capacitor.config.ts
 metadata.json

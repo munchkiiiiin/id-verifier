@@ -46,6 +46,26 @@ export default function App() {
   const [captureTrigger, setCaptureTrigger] = useState(0);
   const [lastProcessedTrigger, setLastProcessedTrigger] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
 
   // Theme state persisted to localStorage
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -270,6 +290,8 @@ export default function App() {
             theme={theme}
             onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             onClose={() => setShowSettings(false)}
+            deferredPrompt={deferredPrompt}
+            onClearInstallPrompt={() => setDeferredPrompt(null)}
           />
         )}
       </AnimatePresence>
