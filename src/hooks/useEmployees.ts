@@ -195,6 +195,48 @@ export function useEmployees() {
     );
   };
 
+  const removeEmployees = async (ids: string[]) => {
+    const { error } = await supabase.from("employees").delete().in("id", ids);
+    if (error) {
+      throw error;
+    }
+
+    setEmployees((current) => current.filter((employee) => !ids.includes(employee.id)));
+  };
+
+  const bulkUpdateEmployees = async (
+    ids: string[],
+    updates: { designation?: string; establishment?: string; expiryDate?: string }
+  ) => {
+    const payload: any = {};
+    if (updates.designation !== undefined) payload.designation = updates.designation;
+    if (updates.establishment !== undefined) payload.establishment = updates.establishment;
+    if (updates.expiryDate !== undefined) payload.expiry_date = updates.expiryDate;
+    payload.updated_at = new Date().toISOString();
+
+    const { error } = await supabase
+      .from("employees")
+      .update(payload)
+      .in("id", ids);
+
+    if (error) {
+      throw error;
+    }
+
+    setEmployees((current) =>
+      current.map((emp) =>
+        ids.includes(emp.id)
+          ? {
+              ...emp,
+              ...(updates.designation !== undefined && { designation: updates.designation }),
+              ...(updates.establishment !== undefined && { establishment: updates.establishment }),
+              ...(updates.expiryDate !== undefined && { expiryDate: updates.expiryDate }),
+            }
+          : emp
+      )
+    );
+  };
+
   const getEmployee = (id: string): Employee | undefined => {
     return employees.find((e) => e.id === id);
   };
@@ -236,7 +278,9 @@ export function useEmployees() {
     isLoaded,
     addEmployee,
     removeEmployee,
+    removeEmployees,
     updateEmployee,
+    bulkUpdateEmployees,
     getEmployee,
     fetchEmployeeByToken,
     accessDenied,

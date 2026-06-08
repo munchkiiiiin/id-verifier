@@ -8,7 +8,8 @@ import { cn } from "../lib/utils";
 import { buildEmployeeQrValue } from "../lib/qr";
 import {
   Users, Plus, Trash2, QrCode, X,
-  LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail, Sun, Moon, ChevronDown
+  LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail, Sun, Moon, ChevronDown,
+  CheckSquare, Check, AlertTriangle, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -144,9 +145,22 @@ export function DatabaseTab({
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
 }) {
-  const { employees, addEmployee, removeEmployee, updateEmployee, accessDenied, errorMessage } = useEmployees();
+  const { employees, addEmployee, removeEmployee, removeEmployees, updateEmployee, bulkUpdateEmployees, accessDenied, errorMessage } = useEmployees();
   const { user, loginWithEmail, logout, loading, authLoading, error: authError, isSuperAdmin } = useAuth();
   
+  // Multi-Select & Custom Modal states
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteConfig, setConfirmDeleteConfig] = useState<{
+    type: "employee" | "admin" | "bulk_employees";
+    targetId?: string;
+    targetIds?: string[];
+    title: string;
+    message: string;
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+
   // Super Admin states
   const [subTab, setSubTab] = useState<"employees" | "admins">("employees");
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
@@ -243,44 +257,57 @@ export function DatabaseTab({
     }
   };
 
-  const handleDeleteAdmin = async (adminId: string, email: string) => {
+  const handleDeleteAdmin = (adminId: string, email: string) => {
     const isSelf = adminId === user?.id;
+    const confirmTitle = isSelf ? "Delete Your Own Account" : "Delete Admin Account";
     const confirmMsg = isSelf 
       ? "WARNING: You are deleting your own account! You will be signed out and lose access immediately. Are you sure you want to continue?" 
       : `Are you sure you want to revoke admin access and fully delete the account for ${email}?`;
 
-    if (!confirm(confirmMsg)) {
-      return;
-    }
+    setConfirmDeleteConfig({
+      type: "admin",
+      targetId: adminId,
+      title: confirmTitle,
+      message: confirmMsg,
+      onConfirm: async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+        if (!token) throw new Error("No active session found.");
 
-      if (!token) throw new Error("No active session found.");
+        const response = await fetch("/api/delete-admin", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ userId: adminId })
+        });
 
-      const response = await fetch("/api/delete-admin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId: adminId })
-      });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to delete admin account.");
+        }
 
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to delete admin account.");
+        if (isSelf) {
+          await logout();
+        } else {
+          await fetchAdminUsers();
+        }
       }
+    });
+  };
 
-      if (isSelf) {
-        await logout();
-      } else {
-        await fetchAdminUsers();
+  const handleDeleteEmployee = (emp: Employee) => {
+    setConfirmDeleteConfig({
+      type: "employee",
+      targetId: emp.id,
+      title: "Delete Employee Record",
+      message: `Are you sure you want to delete the record for ${emp.name}? This action cannot be undone.`,
+      onConfirm: async () => {
+        await removeEmployee(emp.id);
       }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete admin account.");
-    }
+    });
   };
 
   type SortOption = "name" | "employeeCode" | "designation" | "establishment" | "expiryDate";
@@ -435,6 +462,25 @@ export function DatabaseTab({
                 <Sun className="w-4 h-4" />
               )}
             </button>
+            {subTab === "employees" && employees.length > 0 && (
+              <button
+                onClick={() => {
+                  setIsSelectMode(!isSelectMode);
+                  setSelectedEmployeeIds(new Set());
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 glass glass-hover active:scale-95 transition-all rounded-xl px-3 py-2 cursor-pointer",
+                  isSelectMode
+                    ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                    : "text-white/70 hover:text-amber-300"
+                )}
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span className="text-fluid-xs font-semibold uppercase tracking-wider">
+                  {isSelectMode ? "Cancel Select" : "Select"}
+                </span>
+              </button>
+            )}
             <button
               onClick={subTab === "admins" ? () => setShowAddAdminModal(true) : openNewForm}
               className="flex items-center gap-1.5 glass glass-hover active:scale-95 transition-all rounded-xl px-3 py-2 text-white/70 hover:text-amber-300 cursor-pointer"
@@ -456,7 +502,11 @@ export function DatabaseTab({
         {isSuperAdmin && (
           <div className="flex gap-1.5 p-1 glass rounded-2xl border border-white/06 w-fit mb-3 mt-1">
             <button
-              onClick={() => setSubTab("employees")}
+              onClick={() => {
+                setSubTab("employees");
+                setIsSelectMode(false);
+                setSelectedEmployeeIds(new Set());
+              }}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-fluid-xs font-semibold uppercase tracking-wider transition-all cursor-pointer",
                 subTab === "employees"
@@ -467,7 +517,11 @@ export function DatabaseTab({
               Employees
             </button>
             <button
-              onClick={() => setSubTab("admins")}
+              onClick={() => {
+                setSubTab("admins");
+                setIsSelectMode(false);
+                setSelectedEmployeeIds(new Set());
+              }}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-fluid-xs font-semibold uppercase tracking-wider transition-all cursor-pointer",
                 subTab === "admins"
@@ -618,23 +672,37 @@ export function DatabaseTab({
             </motion.div>
           ) : (
             <AnimatePresence>
-              {filteredEmployees.map((emp, i) => (
-                <motion.div
-                  key={emp.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ delay: i * 0.04 }}
-                >
-                  <EmployeeCard
-                    employee={emp}
-                    onEdit={() => openEditForm(emp)}
-                    onDelete={() => removeEmployee(emp.id)}
-                    onShowQR={() => setShowQRFor(emp.id)}
-                    onShowDetails={() => setShowDetailsFor(emp)}
-                  />
-                </motion.div>
-              ))}
+              {filteredEmployees.map((emp, i) => {
+                const isSelected = selectedEmployeeIds.has(emp.id);
+                return (
+                  <motion.div
+                    key={emp.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ delay: i * 0.04 }}
+                  >
+                    <EmployeeCard
+                      employee={emp}
+                      isSelectMode={isSelectMode}
+                      isSelected={isSelected}
+                      onToggleSelect={() => {
+                        const next = new Set(selectedEmployeeIds);
+                        if (next.has(emp.id)) {
+                          next.delete(emp.id);
+                        } else {
+                          next.add(emp.id);
+                        }
+                        setSelectedEmployeeIds(next);
+                      }}
+                      onEdit={() => openEditForm(emp)}
+                      onDelete={() => handleDeleteEmployee(emp)}
+                      onShowQR={() => setShowQRFor(emp.id)}
+                      onShowDetails={() => setShowDetailsFor(emp)}
+                    />
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           )
         ) : (
@@ -716,6 +784,112 @@ export function DatabaseTab({
             onSave={handleUpdateAdmin}
           />
         )}
+        {confirmDeleteConfig && (
+          <ConfirmationModal
+            title={confirmDeleteConfig.title}
+            message={confirmDeleteConfig.message}
+            onConfirm={confirmDeleteConfig.onConfirm}
+            onClose={() => setConfirmDeleteConfig(null)}
+          />
+        )}
+        {showBulkEditModal && (
+          <BulkEditModal
+            selectedCount={selectedEmployeeIds.size}
+            employees={employees}
+            onClose={() => setShowBulkEditModal(false)}
+            onSave={async (updates) => {
+              await bulkUpdateEmployees(Array.from(selectedEmployeeIds), updates);
+              setSelectedEmployeeIds(new Set());
+              setIsSelectMode(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Floating Bulk Action Bar */}
+      <AnimatePresence>
+        {isSelectMode && selectedEmployeeIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            transition={{ type: "spring", damping: 25, stiffness: 350 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-lg glass rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl bg-brand-bg-dark/95"
+            style={{
+              boxShadow: "0 10px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(246,190,90,0.15)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+            }}
+          >
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+              <span className="text-fluid-xs font-mono uppercase tracking-widest text-amber-300 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                {selectedEmployeeIds.size} Selected
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const allIds = filteredEmployees.map((e) => e.id);
+                    const allSelected = allIds.every((id) => selectedEmployeeIds.has(id));
+                    if (allSelected) {
+                      const next = new Set(selectedEmployeeIds);
+                      allIds.forEach((id) => next.delete(id));
+                      setSelectedEmployeeIds(next);
+                    } else {
+                      const next = new Set(selectedEmployeeIds);
+                      allIds.forEach((id) => next.add(id));
+                      setSelectedEmployeeIds(next);
+                    }
+                  }}
+                  className="text-[10px] text-white/50 hover:text-white uppercase tracking-wider font-semibold px-2 py-1 transition-colors cursor-pointer"
+                >
+                  {filteredEmployees.map((e) => e.id).every((id) => selectedEmployeeIds.has(id))
+                    ? "Deselect All"
+                    : "Select All"}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setShowBulkEditModal(true)}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider text-amber-300 hover:text-amber-200 border border-amber-500/20 bg-amber-500/05 hover:bg-amber-500/10 transition-all cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                Bulk Edit
+              </button>
+              <button
+                onClick={() => {
+                  const selectedCount = selectedEmployeeIds.size;
+                  setConfirmDeleteConfig({
+                    type: "bulk_employees",
+                    targetIds: Array.from(selectedEmployeeIds),
+                    title: "Delete Multiple Records",
+                    message: `Are you sure you want to delete the ${selectedCount} selected employee records? This action cannot be undone.`,
+                    onConfirm: async () => {
+                      await removeEmployees(Array.from(selectedEmployeeIds));
+                      setSelectedEmployeeIds(new Set());
+                      setIsSelectMode(false);
+                    }
+                  });
+                }}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 border border-rose-500/20 bg-rose-500/05 hover:bg-rose-500/10 transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedEmployeeIds(new Set());
+                  setIsSelectMode(false);
+                }}
+                className="btn-icon w-9 h-9 border-white/10 text-white/50 hover:text-white hover:bg-white/05 cursor-pointer"
+                title="Cancel Select"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
@@ -723,22 +897,51 @@ export function DatabaseTab({
 
 /* ─── Employee Card ─────────────────────────────────────────────── */
 function EmployeeCard({
-  employee, onEdit, onDelete, onShowQR, onShowDetails
+  employee, onEdit, onDelete, onShowQR, onShowDetails, isSelectMode = false, isSelected = false, onToggleSelect
 }: {
   employee: Employee;
   onEdit: () => void;
   onDelete: () => void;
   onShowQR: () => void;
   onShowDetails: () => void;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
   key?: string;
 }) {
   const isExpired = isBefore(startOfDay(parseISO(employee.expiryDate)), startOfDay(new Date()));
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (isSelectMode && onToggleSelect) {
+      e.stopPropagation();
+      onToggleSelect();
+    } else {
+      onShowDetails();
+    }
+  };
+
   return (
     <div
-      onClick={onShowDetails}
-      className="glass rounded-2xl p-4 flex items-center gap-3 border border-white/06 hover:border-white/10 hover:bg-white/05 active:scale-[0.99] cursor-pointer transition-all text-left"
+      onClick={handleClick}
+      className={cn(
+        "glass rounded-2xl p-4 flex items-center gap-3 border border-white/06 hover:border-white/10 hover:bg-white/05 active:scale-[0.99] cursor-pointer transition-all text-left",
+        isSelected && "border-amber-500/30 bg-amber-500/03"
+      )}
     >
+      {/* Selection Checkbox */}
+      {isSelectMode && (
+        <div className="flex-shrink-0 mr-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={onToggleSelect}
+            className="w-5 h-5 rounded-lg border border-white/20 flex items-center justify-center transition-colors cursor-pointer hover:bg-white/05"
+          >
+            {isSelected ? (
+              <Check className="w-3.5 h-3.5 text-amber-300" />
+            ) : null}
+          </button>
+        </div>
+      )}
+
       {/* Status dot */}
       <div className="flex-shrink-0">
         <div className={cn(
@@ -772,38 +975,40 @@ function EmployeeCard({
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onShowQR();
-          }}
-          className="btn-icon hover:text-amber-300 hover:bg-amber-200/10 hover:border-amber-200/20 cursor-pointer"
-          title="Show QR"
-        >
-          <QrCode className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="btn-icon cursor-pointer"
-          title="Edit"
-        >
-          <Edit2 className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
-          title="Delete"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {!isSelectMode && (
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowQR();
+            }}
+            className="btn-icon hover:text-amber-300 hover:bg-amber-200/10 hover:border-amber-200/20 cursor-pointer"
+            title="Show QR"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="btn-icon cursor-pointer"
+            title="Edit"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
+            title="Delete"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1767,6 +1972,388 @@ function EditAdminModal({
             <>
               <Edit2 className="w-4 h-4 opacity-70" />
               Save Changes
+            </>
+          )}
+        </button>
+      </motion.form>
+    </ModalBackdrop>
+  );
+}
+
+/* ─── Confirmation Modal ────────────────────────────────────────── */
+interface ConfirmationModalProps {
+  title: string;
+  message: string;
+  onConfirm: () => Promise<void> | void;
+  onClose: () => void;
+}
+
+function ConfirmationModal({ title, message, onConfirm, onClose }: ConfirmationModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await onConfirm();
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Operation failed.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalBackdrop onClose={loading ? () => {} : onClose}>
+      <motion.div
+        key="confirm-modal"
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: "spring", damping: 22, stiffness: 300 }}
+        className="glass rounded-[2rem] p-6 w-full max-w-sm border border-rose-500/20 relative mx-4 bg-brand-bg-dark/95"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          disabled={loading}
+          className="absolute top-5 right-5 btn-icon disabled:opacity-50"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="flex items-center gap-3.5 mb-4 mt-2">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-rose-500/30 bg-rose-500/10 text-rose-400 flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 animate-pulse" />
+          </div>
+          <h3 className="serif italic text-fluid-lg text-white font-semibold leading-tight">
+            {title}
+          </h3>
+        </div>
+
+        <p className="text-fluid-xs text-white/70 leading-relaxed mb-6">
+          {message}
+        </p>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
+            <p className="text-rose-400 text-xs leading-relaxed">{error}</p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 btn-primary py-2.5 disabled:opacity-50 bg-white/03 border-white/05 hover:bg-white/06 text-white/70"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-fluid-xs font-bold uppercase tracking-wider text-rose-300 border border-rose-500/30 bg-rose-500/15 hover:bg-rose-500/25 transition-all cursor-pointer disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Deleting…
+              </>
+            ) : (
+              "Confirm Delete"
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </ModalBackdrop>
+  );
+}
+
+/* ─── Bulk Edit Modal ───────────────────────────────────────────── */
+interface BulkEditModalProps {
+  selectedCount: number;
+  employees: Employee[];
+  onClose: () => void;
+  onSave: (updates: { designation?: string; establishment?: string; expiryDate?: string }) => Promise<void>;
+}
+
+function BulkEditModal({ selectedCount, employees, onClose, onSave }: BulkEditModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [updateDesignation, setUpdateDesignation] = useState(false);
+  const [updateEstablishment, setUpdateEstablishment] = useState(false);
+  const [updateExpiryDate, setUpdateExpiryDate] = useState(false);
+
+  const [designation, setDesignation] = useState("");
+  const [establishment, setEstablishment] = useState("Fashion Depot");
+  const [expiryDate, setExpiryDate] = useState(() => format(addYears(new Date(), 1), "yyyy-MM-dd"));
+
+  const uniqueDesignations = useMemo(() => {
+    return Array.from(new Set(employees.map((e) => e.designation).filter(Boolean))).sort();
+  }, [employees]);
+
+  const defaultEstablishments = useMemo(() => ["Fashion Depot", "Thrifter's Haven", "Finders Runway"], []);
+  const uniqueEstablishments = useMemo(() => {
+    const list = Array.from(new Set(employees.map((e) => e.establishment).filter(Boolean)));
+    defaultEstablishments.forEach((est) => {
+      if (!list.includes(est)) list.push(est);
+    });
+    return list.sort();
+  }, [employees, defaultEstablishments]);
+
+  const [isCustomDesignation, setIsCustomDesignation] = useState(true);
+  const [isCustomEstablishment, setIsCustomEstablishment] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!updateDesignation && !updateEstablishment && !updateExpiryDate) {
+      setError("Please check at least one field to update.");
+      return;
+    }
+
+    const payload: { designation?: string; establishment?: string; expiryDate?: string } = {};
+
+    if (updateDesignation) {
+      if (!designation.trim()) {
+        setError("Designation field cannot be empty when checked.");
+        return;
+      }
+      payload.designation = designation.trim();
+    }
+
+    if (updateEstablishment) {
+      if (!establishment.trim()) {
+        setError("Establishment field cannot be empty when checked.");
+        return;
+      }
+      payload.establishment = establishment.trim();
+    }
+
+    if (updateExpiryDate) {
+      if (!expiryDate) {
+        setError("Expiry Date field cannot be empty when checked.");
+        return;
+      }
+      payload.expiryDate = expiryDate;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await onSave(payload);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || "Failed to perform bulk update.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalBackdrop onClose={loading ? () => {} : onClose}>
+      <motion.form
+        onSubmit={handleSubmit}
+        key="bulk-edit-modal"
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: "spring", damping: 22, stiffness: 300 }}
+        className="glass rounded-[2rem] p-6 w-full max-w-sm border border-white/10 relative mx-4 bg-brand-bg-dark/95"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={loading}
+          className="absolute top-5 right-5 btn-icon disabled:opacity-50"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <h3 className="serif italic text-fluid-xl text-white mb-1">
+          Bulk Edit Records
+        </h3>
+        <p className="text-fluid-xs text-white/45 mb-5 font-mono">
+          Updating {selectedCount} selected {selectedCount === 1 ? "record" : "records"}
+        </p>
+
+        <div className="space-y-4 mb-6">
+          <div className={cn("rounded-2xl border p-3.5 transition-colors", updateDesignation ? "border-amber-500/30 bg-amber-500/03" : "border-white/05 bg-black/10")}>
+            <label className="flex items-center gap-2.5 cursor-pointer mb-2">
+              <input
+                type="checkbox"
+                checked={updateDesignation}
+                onChange={(e) => setUpdateDesignation(e.target.checked)}
+                className="w-4 h-4 rounded border-white/20 text-amber-500 focus:ring-0 cursor-pointer accent-amber-500"
+              />
+              <span className="text-fluid-xs font-semibold uppercase tracking-wider text-white/80">
+                Designation
+              </span>
+            </label>
+
+            {updateDesignation && (
+              <div className="mt-2.5">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[10px] text-white/35 uppercase">Value</span>
+                  {isCustomDesignation && uniqueDesignations.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomDesignation(false);
+                        if (uniqueDesignations.length > 0) {
+                          setDesignation(uniqueDesignations[0]);
+                        }
+                      }}
+                      className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                    >
+                      Choose Existing
+                    </button>
+                  )}
+                </div>
+
+                {isCustomDesignation ? (
+                  <input
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                    placeholder="e.g. Sales Associate"
+                    className="input-base"
+                    required
+                  />
+                ) : (
+                  <CustomSelect
+                    value={designation}
+                    onChange={(val) => {
+                      if (val === "__new__") {
+                        setIsCustomDesignation(true);
+                        setDesignation("");
+                      } else {
+                        setDesignation(val);
+                      }
+                    }}
+                    options={[
+                      ...uniqueDesignations.map((des) => ({ value: des as string, label: des as string })),
+                      { value: "__new__", label: "+ Add Custom Designation...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
+                    ]}
+                    placeholder="Select Designation..."
+                    triggerClassName="py-3"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className={cn("rounded-2xl border p-3.5 transition-colors", updateEstablishment ? "border-amber-500/30 bg-amber-500/03" : "border-white/05 bg-black/10")}>
+            <label className="flex items-center gap-2.5 cursor-pointer mb-2">
+              <input
+                type="checkbox"
+                checked={updateEstablishment}
+                onChange={(e) => setUpdateEstablishment(e.target.checked)}
+                className="w-4 h-4 rounded border-white/20 text-amber-500 focus:ring-0 cursor-pointer accent-amber-500"
+              />
+              <span className="text-fluid-xs font-semibold uppercase tracking-wider text-white/80">
+                Establishment
+              </span>
+            </label>
+
+            {updateEstablishment && (
+              <div className="mt-2.5">
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="text-[10px] text-white/35 uppercase">Value</span>
+                  {isCustomEstablishment && uniqueEstablishments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomEstablishment(false);
+                        if (uniqueEstablishments.length > 0) {
+                          setEstablishment(uniqueEstablishments[0]);
+                        }
+                      }}
+                      className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                    >
+                      Choose Existing
+                    </button>
+                  )}
+                </div>
+
+                {isCustomEstablishment ? (
+                  <input
+                    value={establishment}
+                    onChange={(e) => setEstablishment(e.target.value)}
+                    placeholder="e.g. Fashion Depot"
+                    className="input-base"
+                    required
+                  />
+                ) : (
+                  <CustomSelect
+                    value={establishment}
+                    onChange={(val) => {
+                      if (val === "__new__") {
+                        setIsCustomEstablishment(true);
+                        setEstablishment("");
+                      } else {
+                        setEstablishment(val);
+                      }
+                    }}
+                    options={[
+                      ...uniqueEstablishments.map((est) => ({ value: est as string, label: est as string })),
+                      { value: "__new__", label: "+ Add Custom Establishment...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
+                    ]}
+                    placeholder="Select Establishment..."
+                    triggerClassName="py-3"
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className={cn("rounded-2xl border p-3.5 transition-colors", updateExpiryDate ? "border-amber-500/30 bg-amber-500/03" : "border-white/05 bg-black/10")}>
+            <label className="flex items-center gap-2.5 cursor-pointer mb-2">
+              <input
+                type="checkbox"
+                checked={updateExpiryDate}
+                onChange={(e) => setUpdateExpiryDate(e.target.checked)}
+                className="w-4 h-4 rounded border-white/20 text-amber-500 focus:ring-0 cursor-pointer accent-amber-500"
+              />
+              <span className="text-fluid-xs font-semibold uppercase tracking-wider text-white/80">
+                Expiry Date
+              </span>
+            </label>
+
+            {updateExpiryDate && (
+              <div className="mt-2.5">
+                <input
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  className="input-base"
+                  style={{ colorScheme: "dark" }}
+                  required
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
+            <p className="text-rose-300 text-xs leading-relaxed">{error}</p>
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Updating Records…
+            </>
+          ) : (
+            <>
+              <Check className="w-4 h-4" />
+              Apply Changes
             </>
           )}
         </button>
