@@ -153,6 +153,7 @@ export function DatabaseTab({
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [showEditAdminFor, setShowEditAdminFor] = useState<any | null>(null);
 
   const [showQRFor,   setShowQRFor]   = useState<string | null>(null);
   const [showFormFor, setShowFormFor] = useState<Employee | "new" | null>(null);
@@ -184,7 +185,7 @@ export function DatabaseTab({
     }
   };
 
-  const handleAddAdmin = async (email: string, displayName: string, password: string) => {
+  const handleAddAdmin = async (email: string, displayName: string, password: string, role: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -197,7 +198,7 @@ export function DatabaseTab({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ email, displayName, password })
+        body: JSON.stringify({ email, displayName, password, role })
       });
 
       const result = await response.json();
@@ -213,22 +214,64 @@ export function DatabaseTab({
     }
   };
 
+  const handleUpdateAdmin = async (userId: string, email: string, displayName: string, password?: string, role?: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) throw new Error("No active session found.");
+
+      const response = await fetch("/api/update-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId, email, displayName, password, role })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update admin account.");
+      }
+
+      await fetchAdminUsers();
+      setShowEditAdminFor(null);
+    } catch (err) {
+      console.error("Error updating admin account:", err);
+      throw err;
+    }
+  };
+
   const handleDeleteAdmin = async (adminId: string, email: string) => {
     if (adminId === user?.id) {
       alert("You cannot delete your own account.");
       return;
     }
-    if (!confirm(`Are you sure you want to revoke admin access for ${email}?`)) {
+    if (!confirm(`Are you sure you want to revoke admin access and fully delete the account for ${email}?`)) {
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", adminId);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (error) throw error;
+      if (!token) throw new Error("No active session found.");
+
+      const response = await fetch("/api/delete-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: adminId })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete admin account.");
+      }
+
       await fetchAdminUsers();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete admin account.");
@@ -612,6 +655,7 @@ export function DatabaseTab({
                   <AdminCard
                     admin={admin}
                     currentUser={user}
+                    onEdit={() => setShowEditAdminFor(admin)}
                     onDelete={() => handleDeleteAdmin(admin.id, admin.email)}
                   />
                 </motion.div>
@@ -658,6 +702,13 @@ export function DatabaseTab({
           <AddAdminModal
             onClose={() => setShowAddAdminModal(false)}
             onSave={handleAddAdmin}
+          />
+        )}
+        {showEditAdminFor && (
+          <EditAdminModal
+            admin={showEditAdminFor}
+            onClose={() => setShowEditAdminFor(null)}
+            onSave={handleUpdateAdmin}
           />
         )}
       </AnimatePresence>
@@ -1321,6 +1372,7 @@ function LoginForm({
 function AdminCard({
   admin,
   currentUser,
+  onEdit,
   onDelete
 }: {
   admin: {
@@ -1332,6 +1384,7 @@ function AdminCard({
     created_at: string;
   };
   currentUser: any;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const isMe = admin.id === currentUser?.id;
@@ -1389,7 +1442,19 @@ function AdminCard({
       </div>
 
       {/* Actions */}
-      <div className="flex-shrink-0">
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {!isMe && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="btn-icon cursor-pointer"
+            title="Edit Admin"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+        )}
         {!isMe && !admin.is_super_admin && (
           <button
             onClick={(e) => {
@@ -1413,11 +1478,12 @@ function AddAdminModal({
   onSave
 }: {
   onClose: () => void;
-  onSave: (email: string, displayName: string, password: string) => Promise<void>;
+  onSave: (email: string, displayName: string, password: string, role: string) => Promise<void>;
 }) {
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("admin");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1428,7 +1494,7 @@ function AddAdminModal({
     setLoading(true);
     setError(null);
     try {
-      await onSave(email.trim(), displayName.trim(), password);
+      await onSave(email.trim(), displayName.trim(), password, role);
     } catch (err: any) {
       setError(err?.message || "Failed to create admin account.");
     } finally {
@@ -1509,6 +1575,22 @@ function AddAdminModal({
               </button>
             </div>
           </div>
+
+          {/* Role Selection */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Role
+            </label>
+            <CustomSelect
+              value={role}
+              onChange={(val) => setRole(val)}
+              options={[
+                { value: "admin", label: "Admin" },
+                { value: "super_admin", label: "Super Admin" }
+              ]}
+              triggerClassName="py-3"
+            />
+          </div>
         </div>
 
         {error && (
@@ -1527,6 +1609,163 @@ function AddAdminModal({
             <>
               <Plus className="w-4 h-4" />
               Create Admin
+            </>
+          )}
+        </button>
+      </motion.form>
+    </ModalBackdrop>
+  );
+}
+
+/* ─── Edit Admin Modal ───────────────────────────────────────────── */
+function EditAdminModal({
+  admin,
+  onClose,
+  onSave
+}: {
+  admin: {
+    id: string;
+    email: string;
+    display_name?: string;
+    is_admin: boolean;
+    is_super_admin: boolean;
+  };
+  onClose: () => void;
+  onSave: (userId: string, email: string, displayName: string, password?: string, role?: string) => Promise<void>;
+}) {
+  const [email, setEmail] = useState(admin.email);
+  const [displayName, setDisplayName] = useState(admin.display_name || "");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [role, setRole] = useState(() => {
+    if (admin.is_super_admin) return "super_admin";
+    if (admin.is_admin) return "admin";
+    return "user";
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !displayName.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await onSave(admin.id, email.trim(), displayName.trim(), password || undefined, role);
+    } catch (err: any) {
+      setError(err?.message || "Failed to update admin account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <motion.form
+        onSubmit={handleSubmit}
+        key="edit-admin-modal"
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: "spring", damping: 22, stiffness: 300 }}
+        className="glass rounded-[2rem] p-6 w-full max-w-sm border border-white/10 relative mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" onClick={onClose} className="absolute top-5 right-5 btn-icon">
+          <X className="w-4 h-4" />
+        </button>
+
+        <h3 className="serif italic text-fluid-xl text-white mb-5">
+          Edit Admin Account
+        </h3>
+
+        <div className="space-y-3 mb-5">
+          {/* Full Name */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Full Name
+            </label>
+            <input
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Admin Name"
+              className="input-base"
+              required
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@example.com"
+              className="input-base"
+              required
+            />
+          </div>
+
+          {/* Password (Optional) */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Password (leave blank to keep unchanged)
+            </label>
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="New Password (optional)"
+                className="input-base pr-11"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/60 transition-colors"
+              >
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Role */}
+          <div>
+            <label className="block text-fluid-xs text-white/35 uppercase tracking-widest mb-1.5">
+              Role
+            </label>
+            <CustomSelect
+              value={role}
+              onChange={(val) => setRole(val)}
+              options={[
+                { value: "admin", label: "Admin" },
+                { value: "super_admin", label: "Super Admin" },
+                { value: "user", label: "Revoke Access (Regular User)" }
+              ]}
+              triggerClassName="py-3"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/10 px-4 py-3">
+            <p className="text-rose-300 text-xs leading-relaxed">{error}</p>
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-2">
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              Saving Changes…
+            </>
+          ) : (
+            <>
+              <Edit2 className="w-4 h-4 opacity-70" />
+              Save Changes
             </>
           )}
         </button>

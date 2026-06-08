@@ -51,62 +51,51 @@ export default async function handler(req: any, res: any) {
       return res.status(403).json({ error: "Forbidden: Super Admin access required" });
     }
 
-    const { email, displayName, password, role } = req.body;
-    if (!email || !displayName || !password) {
+    const { userId, email, displayName, password, role } = req.body;
+    if (!userId || !email || !displayName || !role) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     const isSuperAdmin = role === "super_admin";
-    let userId: string;
+    const isAdmin = role === "admin" || role === "super_admin";
 
-    // Check if user already exists in auth.users
-    const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
-    if (listError) throw listError;
-
-    const usersList = (listData?.users || []) as any[];
-    const existingAuthUser = usersList.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-    if (existingAuthUser) {
-      userId = existingAuthUser.id;
-      // Sync display name to auth metadata if user already exists
-      const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
-        user_metadata: {
-          full_name: displayName
-        }
-      });
-      if (updateError) throw updateError;
-    } else {
-      // Create new user in Supabase Auth (auto-confirmed email)
-      const { data: newAuthUser, error: createError } = await adminClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: displayName
-        }
-      });
-      if (createError) throw createError;
-      if (!newAuthUser.user) throw new Error("Failed to create auth user");
-      userId = newAuthUser.user.id;
+    // 4. Update the user in Supabase Auth
+    const authUpdatePayload: any = {
+      email: email.toLowerCase(),
+      user_metadata: {
+        full_name: displayName
+      }
+    };
+    if (password && password.trim() !== "") {
+      authUpdatePayload.password = password;
     }
 
-    // Insert or update profile in public.users with is_admin = true
+    const { data: updatedUser, error: authUpdateError } = await adminClient.auth.admin.updateUserById(
+      userId,
+      authUpdatePayload
+    );
+
+    if (authUpdateError) {
+      throw authUpdateError;
+    }
+
+    // 5. Update profile in public.users table
     const { error: dbError } = await adminClient
       .from("users")
-      .upsert({
-        id: userId,
+      .update({
         email: email.toLowerCase(),
         display_name: displayName,
-        is_admin: true,
+        is_admin: isAdmin,
         is_super_admin: isSuperAdmin,
         updated_at: new Date().toISOString()
-      }, { onConflict: "id" });
+      })
+      .eq("id", userId);
 
     if (dbError) throw dbError;
 
-    return res.status(200).json({ message: "Admin account registered successfully", userId });
+    return res.status(200).json({ message: "Admin account updated successfully" });
   } catch (err: any) {
-    console.error("Admin creation endpoint error:", err);
-    return res.status(500).json({ error: err.message || "Failed to create admin account" });
+    console.error("Admin update endpoint error:", err);
+    return res.status(500).json({ error: err.message || "Failed to update admin account" });
   }
 }
