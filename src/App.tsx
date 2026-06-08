@@ -12,7 +12,36 @@ import { useScanLogs } from "./hooks/useScanLogs";
 type Tab = "home" | "scanner" | "reports" | "database";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "home" || hash === "scanner" || hash === "reports" || hash === "database" || hash === "admin") {
+        return hash === "admin" ? "database" : (hash as Tab);
+      }
+    }
+    return "home";
+  });
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "home" || hash === "scanner" || hash === "reports" || hash === "database" || hash === "admin") {
+        setActiveTab(hash === "admin" ? "database" : (hash as Tab));
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+
+    // If there is no hash or hash is empty, initialize it to the current tab
+    if (!window.location.hash) {
+      window.location.hash = activeTab === "database" ? "admin" : activeTab;
+    }
+
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [activeTab]);
+
   const [captureTrigger, setCaptureTrigger] = useState(0);
   const [lastProcessedTrigger, setLastProcessedTrigger] = useState(0);
 
@@ -82,7 +111,7 @@ export default function App() {
         >
           {activeTab === "home" && (
             <HomeTab
-              onStartScan={() => setActiveTab("scanner")}
+              onStartScan={() => { window.location.hash = "scanner"; }}
               theme={theme}
               onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             />
@@ -150,7 +179,7 @@ export default function App() {
       >
         {/* Tab 1: Home */}
         <button
-          onClick={() => setActiveTab("home")}
+          onClick={() => { window.location.hash = "home"; }}
           className={cn(
             "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
             activeTab === "home" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
@@ -162,7 +191,7 @@ export default function App() {
 
         {/* Tab 2: Scanner */}
         <button
-          onClick={() => setActiveTab("scanner")}
+          onClick={() => { window.location.hash = "scanner"; }}
           className={cn(
             "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
             activeTab === "scanner" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
@@ -178,7 +207,7 @@ export default function App() {
             whileHover={{ scale: 1.08, y: -6 }}
             whileTap={{ scale: 0.92 }}
             onClick={() => {
-              setActiveTab("scanner");
+              window.location.hash = "scanner";
               setCaptureTrigger((prev) => prev + 1);
             }}
             className="absolute -top-6 w-16 h-16 bg-[#fd761a] hover:bg-[#e06210] rounded-full flex items-center justify-center text-white shadow-[0_6px_24px_rgba(253,118,26,0.45)] border-4 border-brand-bg-deep cursor-pointer transition-colors duration-200"
@@ -213,7 +242,7 @@ export default function App() {
 
         {/* Tab 3: Reports */}
         <button
-          onClick={() => setActiveTab("reports")}
+          onClick={() => { window.location.hash = "reports"; }}
           className={cn(
             "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
             activeTab === "reports" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
@@ -225,7 +254,7 @@ export default function App() {
 
         {/* Tab 4: Admin (Database) */}
         <button
-          onClick={() => setActiveTab("database")}
+          onClick={() => { window.location.hash = "admin"; }}
           className={cn(
             "relative flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-xl transition-all cursor-pointer",
             activeTab === "database" ? "text-accent scale-100 font-bold" : "text-white/35 hover:text-white/60 scale-95"
