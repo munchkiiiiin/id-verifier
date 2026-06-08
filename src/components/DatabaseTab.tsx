@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, type FormEvent, type ReactNode } from "react";
+import React, { useState, useMemo, useRef, useEffect, type FormEvent, type ReactNode } from "react";
 import { useEmployees, Employee } from "../hooks/useEmployees";
 import { useAuth } from "../hooks/useAuth";
 import { supabase, createTempAuthClient } from "../lib/supabase";
