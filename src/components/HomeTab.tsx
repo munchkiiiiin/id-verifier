@@ -1,13 +1,13 @@
-import { QrCode, Cpu, Award, Lock, ShieldCheck, Sun, Moon } from "lucide-react";
+import { QrCode, Cpu, Award, Lock, ShieldCheck, Settings } from "lucide-react";
 import { motion } from "motion/react";
 
 interface HomeTabProps {
   onStartScan: () => void;
   theme?: "dark" | "light";
-  onToggleTheme?: () => void;
+  onOpenSettings: () => void;
 }
 
-export function HomeTab({ onStartScan, theme, onToggleTheme }: HomeTabProps) {
+export function HomeTab({ onStartScan, theme, onOpenSettings }: HomeTabProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden w-full">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -17,15 +17,11 @@ export function HomeTab({ onStartScan, theme, onToggleTheme }: HomeTabProps) {
           <span className="font-headline-md tracking-wide">Sentinel</span>
         </div>
         <button
-          onClick={onToggleTheme}
+          onClick={onOpenSettings}
           className="text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer"
-          title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          title="Open Settings"
         >
-          {theme === "light" ? (
-            <Moon className="w-5 h-5" />
-          ) : (
-            <Sun className="w-5 h-5" />
-          )}
+          <Settings className="w-5 h-5" />
         </button>
       </header>
 

@@ -47,9 +47,7 @@ export function ScannerTab({
   onClearLogs,
   captureTrigger,
   lastProcessedTrigger,
-  onCaptureComplete,
-  theme,
-  onToggleTheme
+  onCaptureComplete
 }: {
   scanLog: LogEntry[];
   onPushLog: (entry: LogEntry) => void;
@@ -57,8 +55,6 @@ export function ScannerTab({
   captureTrigger?: number;
   lastProcessedTrigger?: number;
   onCaptureComplete?: (val: number) => void;
-  theme?: "dark" | "light";
-  onToggleTheme?: () => void;
 }) {
   const { fetchEmployeeByToken, isLoaded } = useEmployees();
   const [lastFlash, setLastFlash]         = useState<ScanStatus | null>(null);
@@ -254,17 +250,7 @@ export function ScannerTab({
             <Shield className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold font-headline-md text-white tracking-wide">Sentinel</h1>
-          <button
-            onClick={onToggleTheme}
-            className="text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors"
-            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            {theme === "light" ? (
-              <Moon className="w-5 h-5" />
-            ) : (
-              <Sun className="w-5 h-5" />
-            )}
-          </button>
+          <div className="w-9 h-9" />
         </header>
 
         {/* ── Scanner viewport ────────────────────────────────────── */}

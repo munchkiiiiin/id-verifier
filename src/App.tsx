@@ -4,8 +4,9 @@ import { HomeTab } from "./components/HomeTab";
 import { ScannerTab, LogEntry } from "./components/ScannerTab";
 import { ReportsTab } from "./components/ReportsTab";
 import { DatabaseTab } from "./components/DatabaseTab";
+import { SettingsModal } from "./components/SettingsModal";
 import { cn } from "./lib/utils";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useScanLogs } from "./hooks/useScanLogs";
 
@@ -44,6 +45,7 @@ export default function App() {
 
   const [captureTrigger, setCaptureTrigger] = useState(0);
   const [lastProcessedTrigger, setLastProcessedTrigger] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Theme state persisted to localStorage
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -113,7 +115,7 @@ export default function App() {
             <HomeTab
               onStartScan={() => { window.location.hash = "scanner"; }}
               theme={theme}
-              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              onOpenSettings={() => setShowSettings(true)}
             />
           )}
         </div>
@@ -133,8 +135,6 @@ export default function App() {
               captureTrigger={captureTrigger}
               lastProcessedTrigger={lastProcessedTrigger}
               onCaptureComplete={handleCaptureComplete}
-              theme={theme}
-              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             />
           )}
         </div>
@@ -150,8 +150,6 @@ export default function App() {
             <ReportsTab
               scanLog={scanLog}
               onClearLogs={handleClearLogs}
-              theme={theme}
-              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
             />
           )}
         </div>
@@ -166,7 +164,7 @@ export default function App() {
           {activeTab === "database" && (
             <DatabaseTab
               theme={theme}
-              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              onOpenSettings={() => setShowSettings(true)}
             />
           )}
         </div>
@@ -265,6 +263,17 @@ export default function App() {
         </button>
 
       </nav>
+      
+      <AnimatePresence>
+        {showSettings && (
+          <SettingsModal
+            theme={theme}
+            onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+      </AnimatePresence>
+
       <SpeedInsights />
     </div>
   );

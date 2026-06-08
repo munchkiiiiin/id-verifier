@@ -9,7 +9,7 @@ import { buildEmployeeQrValue } from "../lib/qr";
 import {
   Users, Plus, Trash2, QrCode, X,
   LogIn, LogOut, Edit2, Shield, Wifi, Eye, EyeOff, Lock, Mail, Sun, Moon, ChevronDown,
-  CheckSquare, Check, AlertTriangle, Loader2
+  CheckSquare, Check, AlertTriangle, Loader2, Settings
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -140,10 +140,10 @@ function CustomSelect({
 /* ─── DatabaseTab ───────────────────────────────────────────────── */
 export function DatabaseTab({
   theme,
-  onToggleTheme
+  onOpenSettings
 }: {
   theme?: "dark" | "light";
-  onToggleTheme?: () => void;
+  onOpenSettings: () => void;
 }) {
   const { employees, addEmployee, removeEmployee, removeEmployees, updateEmployee, bulkUpdateEmployees, accessDenied, errorMessage } = useEmployees();
   const { user, loginWithEmail, logout, loading, authLoading, error: authError, isSuperAdmin } = useAuth();
@@ -452,15 +452,11 @@ export function DatabaseTab({
           {/* Header actions */}
           <div className="flex items-center gap-2">
             <button
-              onClick={onToggleTheme}
-              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              onClick={onOpenSettings}
+              title="Open Settings"
               className="btn-icon hover:text-white cursor-pointer"
             >
-              {theme === "light" ? (
-                <Moon className="w-4 h-4" />
-              ) : (
-                <Sun className="w-4 h-4" />
-              )}
+              <Settings className="w-4 h-4" />
             </button>
             {subTab === "employees" && employees.length > 0 && (
               <button

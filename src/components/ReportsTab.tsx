@@ -8,11 +8,9 @@ import { motion, AnimatePresence } from "motion/react";
 interface ReportsTabProps {
   scanLog: LogEntry[];
   onClearLogs: () => void;
-  theme?: "dark" | "light";
-  onToggleTheme?: () => void;
 }
 
-export function ReportsTab({ scanLog, onClearLogs, theme, onToggleTheme }: ReportsTabProps) {
+export function ReportsTab({ scanLog, onClearLogs }: ReportsTabProps) {
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   // Group logs by date string (e.g. June 2, 2026)
@@ -89,17 +87,6 @@ export function ReportsTab({ scanLog, onClearLogs, theme, onToggleTheme }: Repor
               <span className="hidden sm:inline">Clear Logs</span>
             </button>
           )}
-          <button
-            onClick={onToggleTheme}
-            className="text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer"
-            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            {theme === "light" ? (
-              <Moon className="w-5 h-5" />
-            ) : (
-              <Sun className="w-5 h-5" />
-            )}
-          </button>
         </div>
       </header>
 
