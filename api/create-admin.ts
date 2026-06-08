@@ -59,15 +59,17 @@ export default async function handler(req: any, res: any) {
     const isSuperAdmin = role === "super_admin";
     let userId: string;
 
-    // Check if user already exists in auth.users
-    const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
-    if (listError) throw listError;
+    // Check if user already exists in public.users (O(1) lookup)
+    const { data: existingProfile, error: profileFindError } = await adminClient
+      .from("users")
+      .select("id")
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
 
-    const usersList = (listData?.users || []) as any[];
-    const existingAuthUser = usersList.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    if (profileFindError) throw profileFindError;
 
-    if (existingAuthUser) {
-      userId = existingAuthUser.id;
+    if (existingProfile) {
+      userId = existingProfile.id;
       // Sync display name to auth metadata if user already exists
       const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
         user_metadata: {
@@ -85,9 +87,32 @@ export default async function handler(req: any, res: any) {
           full_name: displayName
         }
       });
-      if (createError) throw createError;
-      if (!newAuthUser.user) throw new Error("Failed to create auth user");
-      userId = newAuthUser.user.id;
+      
+      if (createError) {
+        // Fallback in case the user exists in auth.users but not in public.users
+        if (createError.message?.toLowerCase().includes("exists") || createError.status === 422) {
+          const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
+          if (listError) throw listError;
+          const usersList = (listData?.users || []) as any[];
+          const existingAuthUser = usersList.find(u => u.email?.toLowerCase() === email.toLowerCase());
+          if (existingAuthUser) {
+            userId = existingAuthUser.id;
+            const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
+              user_metadata: {
+                full_name: displayName
+              }
+            });
+            if (updateError) throw updateError;
+          } else {
+            throw createError;
+          }
+        } else {
+          throw createError;
+        }
+      } else {
+        if (!newAuthUser.user) throw new Error("Failed to create auth user");
+        userId = newAuthUser.user.id;
+      }
     }
 
     // Insert or update profile in public.users with is_admin = true

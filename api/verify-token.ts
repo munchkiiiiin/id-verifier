@@ -60,15 +60,45 @@ type ApiResponse = {
   error?: string;
 };
 
+async function insertScanLog(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  status: string,
+  employeeId: string | null,
+  scannedToken: string | null
+) {
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/scan_logs`, {
+      method: "POST",
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({
+        status,
+        employee_id: employeeId,
+        scanned_token: scannedToken
+      })
+    });
+    if (!response.ok) {
+      console.error(`verify-token: failed to insert scan log: ${response.status} ${response.statusText}`);
+    }
+  } catch (err) {
+    console.error("verify-token: failed to insert scan log", err);
+  }
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ employee: null, error: "Method not allowed" } satisfies ApiResponse);
   }
 
-  // Simple client IP extraction (Vercel and common reverse proxies set x-forwarded-for)
-  const forwarded = req.headers?.['x-forwarded-for'];
-  const ip = Array.isArray(forwarded) ? forwarded[0] : (String(forwarded ?? req.socket?.remoteAddress ?? 'unknown'));
+  // Spoof-resistant client IP extraction
+  const rawIp = req.headers?.['x-real-ip'] || req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+  const ip = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(',')[0].trim();
 
   // Prefer Upstash-backed limiter when configured
   // Require Upstash for rate limiting in production; do not fall back to local memory
@@ -95,16 +125,17 @@ export default async function handler(req: any, res: any) {
   const rawToken = Array.isArray(req.query?.token) ? req.query.token[0] : req.query?.token;
   const token = String(rawToken ?? "").trim();
 
-  if (!UUID_PATTERN.test(token)) {
-    console.info(`verify-token: invalid token from ${ip} => ${redactToken(token)}`);
-    return res.status(400).json({ employee: null, error: "Invalid token" } satisfies ApiResponse);
-  }
-
   const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
     return res.status(500).json({ employee: null, error: "Server not configured" } satisfies ApiResponse);
+  }
+
+  if (!UUID_PATTERN.test(token)) {
+    console.info(`verify-token: invalid token from ${ip} => ${redactToken(token)}`);
+    await insertScanLog(supabaseUrl, serviceRoleKey, "invalid_qr", null, token);
+    return res.status(400).json({ employee: null, error: "Invalid token" } satisfies ApiResponse);
   }
 
   const query = new URLSearchParams({
@@ -127,6 +158,18 @@ export default async function handler(req: any, res: any) {
 
   const rows = (await response.json()) as Record<string, unknown>[];
   const employee = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+
+  // Insert log into scan_logs
+  let status: 'valid' | 'expired' | 'not_found' = 'not_found';
+  let employeeId: string | null = null;
+  if (employee) {
+    employeeId = String(employee.id);
+    const expiryDate = String(employee.expiry_date);
+    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const expired = expiryDate < todayStr;
+    status = expired ? 'expired' : 'valid';
+  }
+  await insertScanLog(supabaseUrl, serviceRoleKey, status, employeeId, token);
 
   // Log outcome without leaking full token
   if (employee) {

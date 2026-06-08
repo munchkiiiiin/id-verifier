@@ -3,9 +3,12 @@ import { supabase } from "../lib/supabase";
 import { Employee } from "./useEmployees";
 import { LogEntry, ScanStatus } from "../components/ScannerTab";
 import { subDays } from "date-fns";
+import { useAuth } from "./useAuth";
 
 export function useScanLogs() {
-  const [scanLog, setScanLog] = useState<LogEntry[]>([]);
+  const { isAdmin } = useAuth();
+  const [dbLogs, setDbLogs] = useState<LogEntry[]>([]);
+  const [localLogs, setLocalLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +31,10 @@ export function useScanLogs() {
 
   // Fetch scan logs from the last 7 days
   const loadLogs = useCallback(async () => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     try {
       const sevenDaysAgo = subDays(new Date(), 7).toISOString();
       const { data, error: fetchError } = await supabase
@@ -55,7 +62,7 @@ export function useScanLogs() {
       }
 
       const mappedLogs = (data ?? []).map((row) => mapRowToLogEntry(row));
-      setScanLog(mappedLogs);
+      setDbLogs(mappedLogs);
       setError(null);
     } catch (err) {
       console.error("Failed to load scan logs from Supabase:", err);
@@ -63,10 +70,14 @@ export function useScanLogs() {
     } finally {
       setLoading(false);
     }
-  }, [mapRowToLogEntry]);
+  }, [mapRowToLogEntry, isAdmin]);
 
   // Realtime subscription setup
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     void loadLogs();
 
     const channel = supabase
@@ -83,10 +94,22 @@ export function useScanLogs() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [loadLogs]);
+  }, [loadLogs, isAdmin]);
 
   // Push new log to Supabase
   const pushLog = useCallback(async (entry: Omit<LogEntry, "id" | "timestamp">) => {
+    if (!isAdmin) {
+      const localEntry: LogEntry = {
+        id: crypto.randomUUID(),
+        status: entry.status,
+        employee: entry.employee,
+        scannedToken: entry.scannedToken,
+        timestamp: new Date()
+      };
+      setLocalLogs((prev) => [localEntry, ...prev]);
+      return;
+    }
+
     try {
       const { error: insertError } = await supabase
         .from("scan_logs")
@@ -103,10 +126,15 @@ export function useScanLogs() {
       console.error("Failed to push scan log to Supabase:", err);
       throw err;
     }
-  }, []);
+  }, [isAdmin]);
 
   // Clear all scan logs from the database
   const clearLogs = useCallback(async () => {
+    if (!isAdmin) {
+      setLocalLogs([]);
+      return;
+    }
+
     try {
       const { error: deleteError } = await supabase
         .from("scan_logs")
@@ -120,10 +148,10 @@ export function useScanLogs() {
       console.error("Failed to clear scan logs in Supabase:", err);
       throw err;
     }
-  }, []);
+  }, [isAdmin]);
 
   return {
-    scanLog,
+    scanLog: isAdmin ? dbLogs : localLogs,
     loading,
     error,
     pushLog,

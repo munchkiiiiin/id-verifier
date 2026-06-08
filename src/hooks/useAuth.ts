@@ -133,27 +133,6 @@ export function useAuth() {
     }
   };
 
-  const registerWithEmail = async (email: string, password: string) => {
-    setError(null);
-    setAuthLoading(true);
-    try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      if (signUpError) {
-        throw signUpError;
-      }
-      if (data.user) {
-        await syncUserProfile(data.user);
-      }
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   /* ── Logout ─────────────────────────────────────────────────── */
   const logout = async () => {
     try { await supabase.auth.signOut(); }

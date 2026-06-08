@@ -19,7 +19,7 @@ create unique index if not exists employees_employee_code_key
 
 create table if not exists public.users (
   id uuid primary key,
-  email text not null,
+  email text not null unique,
   display_name text not null default '',
   is_admin boolean not null default false,
   is_super_admin boolean not null default false,
@@ -66,13 +66,9 @@ $$;
 alter table public.employees enable row level security;
 alter table public.users enable row level security;
 
--- Anyone can read employee records (needed for QR scanning without logging in).
+-- Only authenticated admins can read and manage employees.
 drop policy if exists "authenticated can read employees" on public.employees;
 drop policy if exists "anyone can read employees" on public.employees;
-create policy "anyone can read employees"
-on public.employees for select
-to public
-using (true);
 
 drop policy if exists "authenticated can manage employees" on public.employees;
 create policy "authenticated can manage employees"
@@ -115,18 +111,21 @@ create table if not exists public.scan_logs (
 -- Enable Row-Level Security
 alter table public.scan_logs enable row level security;
 
--- Define RLS Policies matching current public access layout
+-- Define RLS Policies for scan_logs (restricted to authenticated admins)
 drop policy if exists "anyone can read scan_logs" on public.scan_logs;
-create policy "anyone can read scan_logs" on public.scan_logs
-  for select to public using (true);
+drop policy if exists "admins can read scan_logs" on public.scan_logs;
+create policy "admins can read scan_logs" on public.scan_logs
+  for select to authenticated using (public.is_admin_user());
 
 drop policy if exists "anyone can insert scan_logs" on public.scan_logs;
-create policy "anyone can insert scan_logs" on public.scan_logs
-  for insert to public with check (true);
+drop policy if exists "admins can insert scan_logs" on public.scan_logs;
+create policy "admins can insert scan_logs" on public.scan_logs
+  for insert to authenticated with check (public.is_admin_user());
 
 drop policy if exists "anyone can delete scan_logs" on public.scan_logs;
-create policy "anyone can delete scan_logs" on public.scan_logs
-  for delete to public using (true);
+drop policy if exists "admins can delete scan_logs" on public.scan_logs;
+create policy "admins can delete scan_logs" on public.scan_logs
+  for delete to authenticated using (public.is_admin_user());
 
 -- Enable pg_cron and schedule the 7-day retention policy
 create extension if not exists pg_cron;
