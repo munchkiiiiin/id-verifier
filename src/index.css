@@ -259,7 +259,7 @@ body {
   color: #0B1C30;
 }
 
-/* Overriding white text utilities to dark blue text for light theme */
+/* Overriding white text utilities to dark blue text for light theme with enhanced contrast */
 .light .text-white {
   color: #0B1C30 !important;
 }
@@ -267,82 +267,182 @@ body {
   color: rgba(11, 28, 48, 0.95) !important;
 }
 .light .text-white\/90 {
-  color: rgba(11, 28, 48, 0.90) !important;
+  color: rgba(11, 28, 48, 0.92) !important;
 }
 .light .text-white\/85 {
-  color: rgba(11, 28, 48, 0.85) !important;
+  color: rgba(11, 28, 48, 0.88) !important;
 }
 .light .text-white\/80 {
-  color: rgba(11, 28, 48, 0.80) !important;
+  color: rgba(11, 28, 48, 0.84) !important;
 }
 .light .text-white\/75 {
-  color: rgba(11, 28, 48, 0.75) !important;
+  color: rgba(11, 28, 48, 0.80) !important;
 }
 .light .text-white\/70 {
-  color: rgba(11, 28, 48, 0.70) !important;
+  color: rgba(11, 28, 48, 0.76) !important;
 }
 .light .text-white\/60 {
-  color: rgba(11, 28, 48, 0.60) !important;
+  color: rgba(11, 28, 48, 0.70) !important;
+}
+.light .text-white\/50 {
+  color: rgba(11, 28, 48, 0.64) !important;
 }
 .light .text-white\/45 {
-  color: rgba(11, 28, 48, 0.45) !important;
+  color: rgba(11, 28, 48, 0.60) !important;
 }
 .light .text-white\/40 {
-  color: rgba(11, 28, 48, 0.40) !important;
+  color: rgba(11, 28, 48, 0.56) !important;
 }
 .light .text-white\/35 {
-  color: rgba(11, 28, 48, 0.35) !important;
+  color: rgba(11, 28, 48, 0.52) !important;
+}
+.light .text-white\/30 {
+  color: rgba(11, 28, 48, 0.48) !important;
 }
 .light .text-white\/25 {
-  color: rgba(11, 28, 48, 0.25) !important;
+  color: rgba(11, 28, 48, 0.44) !important;
+}
+.light .text-white\/20 {
+  color: rgba(11, 28, 48, 0.38) !important;
+}
+.light .text-white\/18 {
+  color: rgba(11, 28, 48, 0.35) !important;
 }
 .light .text-white\/15 {
-  color: rgba(11, 28, 48, 0.15) !important;
+  color: rgba(11, 28, 48, 0.30) !important;
 }
 .light .text-white\/10 {
-  color: rgba(11, 28, 48, 0.10) !important;
+  color: rgba(11, 28, 48, 0.20) !important;
 }
 .light .text-white\/07 {
-  color: rgba(11, 28, 48, 0.07) !important;
+  color: rgba(11, 28, 48, 0.14) !important;
 }
 .light .text-white\/05 {
-  color: rgba(11, 28, 48, 0.05) !important;
+  color: rgba(11, 28, 48, 0.10) !important;
 }
 .light .text-white\/03 {
-  color: rgba(11, 28, 48, 0.03) !important;
+  color: rgba(11, 28, 48, 0.06) !important;
+}
+
+/* Amber / Orange text and background overrides for light theme contrast */
+.light .text-amber-100 {
+  color: #EA580C !important;
+}
+.light .text-amber-100\/90 {
+  color: #EA580C !important;
+}
+.light .text-amber-100\/95 {
+  color: #EA580C !important;
+}
+.light .text-amber-300 {
+  color: #C2410C !important;
+}
+.light .text-amber-300\/80 {
+  color: rgba(194, 65, 12, 0.85) !important;
+}
+.light .text-amber-300\/60 {
+  color: rgba(194, 65, 12, 0.70) !important;
+}
+.light .text-amber-400 {
+  color: #C2410C !important;
+}
+.light .text-amber-400\/80 {
+  color: rgba(194, 65, 12, 0.85) !important;
+}
+.light .text-amber-500 {
+  color: #9A3412 !important;
+}
+.light .bg-amber-500\/15 {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+}
+.light .bg-amber-500\/10 {
+  background-color: rgba(249, 115, 22, 0.08) !important;
+}
+.light .bg-amber-500\/20 {
+  background-color: rgba(249, 115, 22, 0.15) !important;
+}
+.light .border-amber-500\/30 {
+  border-color: rgba(249, 115, 22, 0.35) !important;
+}
+.light .border-amber-500\/20 {
+  border-color: rgba(249, 115, 22, 0.25) !important;
+}
+
+/* Rose / Emerald text and border overrides for light theme contrast */
+.light .text-emerald-400 {
+  color: #047857 !important;
+}
+.light .text-emerald-400\/80 {
+  color: rgba(4, 120, 87, 0.85) !important;
+}
+.light .text-rose-300 {
+  color: #B91C1C !important;
+}
+.light .text-rose-400 {
+  color: #B91C1C !important;
+}
+.light .text-rose-400\/80 {
+  color: rgba(185, 28, 28, 0.85) !important;
+}
+.light .text-rose-500 {
+  color: #991B1B !important;
 }
 
 /* Overriding white borders to dark borders for light theme */
+.light .border-white\/20 {
+  border-color: rgba(11, 28, 48, 0.20) !important;
+}
 .light .border-white\/10 {
   border-color: rgba(11, 28, 48, 0.10) !important;
 }
+.light .border-white\/08 {
+  border-color: rgba(11, 28, 48, 0.09) !important;
+}
 .light .border-white\/07 {
-  border-color: rgba(11, 28, 48, 0.07) !important;
+  border-color: rgba(11, 28, 48, 0.08) !important;
+}
+.light .border-white\/06 {
+  border-color: rgba(11, 28, 48, 0.08) !important;
 }
 .light .border-white\/05 {
-  border-color: rgba(11, 28, 48, 0.05) !important;
+  border-color: rgba(11, 28, 48, 0.06) !important;
 }
 .light .border-brand-border {
   border-color: rgba(11, 28, 48, 0.08) !important;
 }
 
 /* Overriding white background helpers to dark backgrounds for light theme */
-.light .bg-white\/5 {
-  background-color: rgba(11, 28, 48, 0.05) !important;
+.light .bg-white\/20 {
+  background-color: rgba(11, 28, 48, 0.15) !important;
 }
 .light .bg-white\/10 {
   background-color: rgba(11, 28, 48, 0.08) !important;
 }
-.light .bg-white\/03 {
-  background-color: rgba(11, 28, 48, 0.03) !important;
+.light .bg-white\/06 {
+  background-color: rgba(11, 28, 48, 0.06) !important;
 }
 .light .bg-white\/05 {
   background-color: rgba(11, 28, 48, 0.05) !important;
 }
+.light .bg-white\/03 {
+  background-color: rgba(11, 28, 48, 0.03) !important;
+}
 
 /* Semi-transparent header and modal dark overlay values */
+.light .bg-black\/40 {
+  background-color: rgba(255, 255, 255, 0.70) !important;
+}
+.light .bg-black\/35 {
+  background-color: rgba(255, 255, 255, 0.65) !important;
+}
 .light .bg-black\/20 {
-  background-color: rgba(255, 255, 255, 0.40) !important;
+  background-color: rgba(11, 28, 48, 0.03) !important;
+}
+.light .bg-black\/10 {
+  background-color: rgba(11, 28, 48, 0.04) !important;
+}
+.light .bg-black\/05 {
+  background-color: rgba(11, 28, 48, 0.02) !important;
 }
 .light .bg-black\/75 {
   background-color: rgba(255, 255, 255, 0.75) !important;
@@ -350,39 +450,39 @@ body {
 
 /* Form inputs & interactive widgets in light mode */
 .light .input-base {
-  background: rgba(255, 255, 255, 0.75);
-  border-color: rgba(11, 28, 48, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(11, 28, 48, 0.15);
   color: #0B1C30;
 }
 .light .input-base:focus {
   border-color: var(--color-accent);
 }
 .light .input-base::placeholder {
-  color: rgba(11, 28, 48, 0.40);
+  color: rgba(11, 28, 48, 0.45);
 }
 
 .light .btn-primary {
-  background: rgba(11, 28, 48, 0.04);
-  border-color: rgba(11, 28, 48, 0.10);
+  background: rgba(11, 28, 48, 0.06);
+  border-color: rgba(11, 28, 48, 0.15);
   color: #0B1C30;
 }
 .light .btn-primary:hover {
-  background: rgba(11, 28, 48, 0.08);
+  background: rgba(11, 28, 48, 0.10);
 }
 
 .light .btn-icon {
-  background: rgba(11, 28, 48, 0.03);
-  border-color: rgba(11, 28, 48, 0.08);
-  color: rgba(11, 28, 48, 0.55);
+  background: rgba(11, 28, 48, 0.04);
+  border-color: rgba(11, 28, 48, 0.10);
+  color: rgba(11, 28, 48, 0.65);
 }
 .light .btn-icon:hover {
-  background: rgba(11, 28, 48, 0.07);
+  background: rgba(11, 28, 48, 0.09);
   color: #0B1C30;
 }
 
 /* WebKit Scrollbar colors in light mode */
 .light ::-webkit-scrollbar-thumb {
-  background: rgba(11, 28, 48, 0.15);
+  background: rgba(11, 28, 48, 0.20);
 }
 
 /* Bento card and details overrides for light mode */
@@ -402,7 +502,7 @@ body {
   background-color: rgba(249, 115, 22, 0.10) !important;
 }
 .light .text-emerald-400 {
-  color: #059669 !important;
+  color: #047857 !important;
 }
 .light .bg-emerald-500\/10 {
   background-color: rgba(16, 185, 129, 0.10) !important;
