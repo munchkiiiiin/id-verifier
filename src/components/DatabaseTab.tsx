@@ -703,6 +703,16 @@ export function DatabaseTab({
                   </motion.div>
                 );
               })}
+              {isSelectMode && selectedEmployeeIds.size > 0 && (
+                <motion.div
+                  key="bulk-spacer"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 112 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="col-span-full"
+                  aria-hidden="true"
+                />
+              )}
             </AnimatePresence>
           )
         ) : (
@@ -814,7 +824,7 @@ export function DatabaseTab({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-lg glass rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl bg-brand-bg-dark/95"
+            className="fixed bottom-[calc(7.25rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-lg glass rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl bg-brand-bg-dark/95"
             style={{
               boxShadow: "0 10px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(246,190,90,0.15)",
               backdropFilter: "blur(20px)",
