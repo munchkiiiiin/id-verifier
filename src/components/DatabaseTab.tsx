@@ -2093,13 +2093,9 @@ function BulkEditModal({ selectedCount, employees, onClose, onSave }: BulkEditMo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [updateDesignation, setUpdateDesignation] = useState(false);
-  const [updateEstablishment, setUpdateEstablishment] = useState(false);
-  const [updateExpiryDate, setUpdateExpiryDate] = useState(false);
-
   const [designation, setDesignation] = useState("");
-  const [establishment, setEstablishment] = useState("Fashion Depot");
-  const [expiryDate, setExpiryDate] = useState(() => format(addYears(new Date(), 1), "yyyy-MM-dd"));
+  const [establishment, setEstablishment] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
 
   const uniqueDesignations = useMemo(() => {
     return Array.from(new Set(employees.map((e) => e.designation).filter(Boolean))).sort();
@@ -2119,34 +2115,25 @@ function BulkEditModal({ selectedCount, employees, onClose, onSave }: BulkEditMo
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!updateDesignation && !updateEstablishment && !updateExpiryDate) {
-      setError("Please check at least one field to update.");
+    
+    const isDesignationEntered = designation.trim() !== "";
+    const isEstablishmentEntered = establishment.trim() !== "";
+    const isExpiryDateEntered = expiryDate !== "";
+
+    if (!isDesignationEntered && !isEstablishmentEntered && !isExpiryDateEntered) {
+      setError("Please edit at least one field to apply changes.");
       return;
     }
 
     const payload: { designation?: string; establishment?: string; expiryDate?: string } = {};
 
-    if (updateDesignation) {
-      if (!designation.trim()) {
-        setError("Designation field cannot be empty when checked.");
-        return;
-      }
+    if (isDesignationEntered) {
       payload.designation = designation.trim();
     }
-
-    if (updateEstablishment) {
-      if (!establishment.trim()) {
-        setError("Establishment field cannot be empty when checked.");
-        return;
-      }
+    if (isEstablishmentEntered) {
       payload.establishment = establishment.trim();
     }
-
-    if (updateExpiryDate) {
-      if (!expiryDate) {
-        setError("Expiry Date field cannot be empty when checked.");
-        return;
-      }
+    if (isExpiryDateEntered) {
       payload.expiryDate = expiryDate;
     }
 
@@ -2192,159 +2179,185 @@ function BulkEditModal({ selectedCount, employees, onClose, onSave }: BulkEditMo
         </p>
 
         <div className="space-y-4 mb-6">
-          <div className={cn("rounded-2xl border p-3.5 transition-colors", updateDesignation ? "border-amber-500/30 bg-amber-500/03" : "border-white/05 bg-black/10")}>
-            <label className="flex items-center gap-2.5 cursor-pointer mb-2">
-              <input
-                type="checkbox"
-                checked={updateDesignation}
-                onChange={(e) => setUpdateDesignation(e.target.checked)}
-                className="w-4 h-4 rounded border-white/20 text-amber-500 focus:ring-0 cursor-pointer accent-amber-500"
-              />
+          {/* Designation */}
+          <div className="rounded-2xl border border-white/05 bg-black/10 p-3.5">
+            <div className="flex justify-between items-center mb-2">
               <span className="text-fluid-xs font-semibold uppercase tracking-wider text-white/80">
                 Designation
               </span>
-            </label>
-
-            {updateDesignation && (
-              <div className="mt-2.5">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[10px] text-white/35 uppercase">Value</span>
-                  {isCustomDesignation && uniqueDesignations.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomDesignation(false);
-                        if (uniqueDesignations.length > 0) {
-                          setDesignation(uniqueDesignations[0]);
-                        }
-                      }}
-                      className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
-                    >
-                      Choose Existing
-                    </button>
-                  )}
-                </div>
-
-                {isCustomDesignation ? (
-                  <input
-                    value={designation}
-                    onChange={(e) => setDesignation(e.target.value)}
-                    placeholder="e.g. Sales Associate"
-                    className="input-base"
-                    required
-                  />
-                ) : (
-                  <CustomSelect
-                    value={designation}
-                    onChange={(val) => {
-                      if (val === "__new__") {
-                        setIsCustomDesignation(true);
-                        setDesignation("");
-                      } else {
-                        setDesignation(val);
+              <div className="flex gap-2.5 items-center">
+                {isCustomDesignation && uniqueDesignations.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomDesignation(false);
+                      if (uniqueDesignations.length > 0) {
+                        setDesignation(uniqueDesignations[0]);
                       }
                     }}
-                    options={[
-                      ...uniqueDesignations.map((des) => ({ value: des as string, label: des as string })),
-                      { value: "__new__", label: "+ Add Custom Designation...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
-                    ]}
-                    placeholder="Select Designation..."
-                    triggerClassName="py-3"
-                  />
+                    className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                  >
+                    Choose Existing
+                  </button>
+                )}
+                {!isCustomDesignation && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomDesignation(true);
+                      setDesignation("");
+                    }}
+                    className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                  >
+                    Custom
+                  </button>
+                )}
+                {designation && (
+                  <button
+                    type="button"
+                    onClick={() => setDesignation("")}
+                    className="text-[10px] text-rose-400 hover:text-rose-300 uppercase tracking-wider cursor-pointer"
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
-            )}
+            </div>
+
+            <div className="mt-1">
+              {isCustomDesignation ? (
+                <input
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                  placeholder="e.g. Sales Associate (Leave blank to keep unchanged)"
+                  className="input-base"
+                />
+              ) : (
+                <CustomSelect
+                  value={designation}
+                  onChange={(val) => {
+                    if (val === "__new__") {
+                      setIsCustomDesignation(true);
+                      setDesignation("");
+                    } else {
+                      setDesignation(val);
+                    }
+                  }}
+                  options={[
+                    { value: "", label: "— Leave Unchanged —", className: "text-white/40 italic font-normal" },
+                    ...uniqueDesignations.map((des) => ({ value: des as string, label: des as string })),
+                    { value: "__new__", label: "+ Add Custom Designation...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
+                  ]}
+                  placeholder="Select Designation... (Unchanged)"
+                  triggerClassName="py-3"
+                />
+              )}
+            </div>
           </div>
 
-          <div className={cn("rounded-2xl border p-3.5 transition-colors", updateEstablishment ? "border-amber-500/30 bg-amber-500/03" : "border-white/05 bg-black/10")}>
-            <label className="flex items-center gap-2.5 cursor-pointer mb-2">
-              <input
-                type="checkbox"
-                checked={updateEstablishment}
-                onChange={(e) => setUpdateEstablishment(e.target.checked)}
-                className="w-4 h-4 rounded border-white/20 text-amber-500 focus:ring-0 cursor-pointer accent-amber-500"
-              />
+          {/* Establishment */}
+          <div className="rounded-2xl border border-white/05 bg-black/10 p-3.5">
+            <div className="flex justify-between items-center mb-2">
               <span className="text-fluid-xs font-semibold uppercase tracking-wider text-white/80">
                 Establishment
               </span>
-            </label>
-
-            {updateEstablishment && (
-              <div className="mt-2.5">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[10px] text-white/35 uppercase">Value</span>
-                  {isCustomEstablishment && uniqueEstablishments.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCustomEstablishment(false);
-                        if (uniqueEstablishments.length > 0) {
-                          setEstablishment(uniqueEstablishments[0]);
-                        }
-                      }}
-                      className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
-                    >
-                      Choose Existing
-                    </button>
-                  )}
-                </div>
-
-                {isCustomEstablishment ? (
-                  <input
-                    value={establishment}
-                    onChange={(e) => setEstablishment(e.target.value)}
-                    placeholder="e.g. Fashion Depot"
-                    className="input-base"
-                    required
-                  />
-                ) : (
-                  <CustomSelect
-                    value={establishment}
-                    onChange={(val) => {
-                      if (val === "__new__") {
-                        setIsCustomEstablishment(true);
-                        setEstablishment("");
-                      } else {
-                        setEstablishment(val);
+              <div className="flex gap-2.5 items-center">
+                {isCustomEstablishment && uniqueEstablishments.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomEstablishment(false);
+                      if (uniqueEstablishments.length > 0) {
+                        setEstablishment(uniqueEstablishments[0]);
                       }
                     }}
-                    options={[
-                      ...uniqueEstablishments.map((est) => ({ value: est as string, label: est as string })),
-                      { value: "__new__", label: "+ Add Custom Establishment...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
-                    ]}
-                    placeholder="Select Establishment..."
-                    triggerClassName="py-3"
-                  />
+                    className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                  >
+                    Choose Existing
+                  </button>
+                )}
+                {!isCustomEstablishment && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomEstablishment(true);
+                      setEstablishment("");
+                    }}
+                    className="text-[10px] text-amber-300/80 hover:text-amber-300 uppercase tracking-wider cursor-pointer"
+                  >
+                    Custom
+                  </button>
+                )}
+                {establishment && (
+                  <button
+                    type="button"
+                    onClick={() => setEstablishment("")}
+                    className="text-[10px] text-rose-400 hover:text-rose-300 uppercase tracking-wider cursor-pointer"
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
-            )}
+            </div>
+
+            <div className="mt-1">
+              {isCustomEstablishment ? (
+                <input
+                  value={establishment}
+                  onChange={(e) => setEstablishment(e.target.value)}
+                  placeholder="e.g. Fashion Depot (Leave blank to keep unchanged)"
+                  className="input-base"
+                />
+              ) : (
+                <CustomSelect
+                  value={establishment}
+                  onChange={(val) => {
+                    if (val === "__new__") {
+                      setIsCustomEstablishment(true);
+                      setEstablishment("");
+                    } else {
+                      setEstablishment(val);
+                    }
+                  }}
+                  options={[
+                    { value: "", label: "— Leave Unchanged —", className: "text-white/40 italic font-normal" },
+                    ...uniqueEstablishments.map((est) => ({ value: est as string, label: est as string })),
+                    { value: "__new__", label: "+ Add Custom Establishment...", className: "text-amber-300 font-semibold border-t border-white/05 mt-1 pt-2" }
+                  ]}
+                  placeholder="Select Establishment... (Unchanged)"
+                  triggerClassName="py-3"
+                />
+              )}
+            </div>
           </div>
 
-          <div className={cn("rounded-2xl border p-3.5 transition-colors", updateExpiryDate ? "border-amber-500/30 bg-amber-500/03" : "border-white/05 bg-black/10")}>
-            <label className="flex items-center gap-2.5 cursor-pointer mb-2">
-              <input
-                type="checkbox"
-                checked={updateExpiryDate}
-                onChange={(e) => setUpdateExpiryDate(e.target.checked)}
-                className="w-4 h-4 rounded border-white/20 text-amber-500 focus:ring-0 cursor-pointer accent-amber-500"
-              />
+          {/* Expiry Date */}
+          <div className="rounded-2xl border border-white/05 bg-black/10 p-3.5">
+            <div className="flex justify-between items-center mb-2">
               <span className="text-fluid-xs font-semibold uppercase tracking-wider text-white/80">
                 Expiry Date
               </span>
-            </label>
+              {expiryDate && (
+                <button
+                  type="button"
+                  onClick={() => setExpiryDate("")}
+                  className="text-[10px] text-rose-400 hover:text-rose-300 uppercase tracking-wider cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
 
-            {updateExpiryDate && (
-              <div className="mt-2.5">
-                <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  className="input-base"
-                  style={{ colorScheme: "dark" }}
-                  required
-                />
-              </div>
-            )}
+            <div className="mt-1">
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                className="input-base"
+                style={{ colorScheme: "dark" }}
+                placeholder="dd/mm/yyyy (Leave blank to keep unchanged)"
+              />
+            </div>
           </div>
         </div>
 
