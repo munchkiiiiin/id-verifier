@@ -56,11 +56,6 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Missing required fields: userId" });
     }
 
-    // 4. Prevent deleting yourself
-    if (userId === requester.id) {
-      return res.status(400).json({ error: "Forbidden: You cannot delete your own account" });
-    }
-
     // 5. Delete profile from public.users table
     const { error: dbError } = await adminClient
       .from("users")

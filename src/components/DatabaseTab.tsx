@@ -244,11 +244,12 @@ export function DatabaseTab({
   };
 
   const handleDeleteAdmin = async (adminId: string, email: string) => {
-    if (adminId === user?.id) {
-      alert("You cannot delete your own account.");
-      return;
-    }
-    if (!confirm(`Are you sure you want to revoke admin access and fully delete the account for ${email}?`)) {
+    const isSelf = adminId === user?.id;
+    const confirmMsg = isSelf 
+      ? "WARNING: You are deleting your own account! You will be signed out and lose access immediately. Are you sure you want to continue?" 
+      : `Are you sure you want to revoke admin access and fully delete the account for ${email}?`;
+
+    if (!confirm(confirmMsg)) {
       return;
     }
 
@@ -272,7 +273,11 @@ export function DatabaseTab({
         throw new Error(result.error || "Failed to delete admin account.");
       }
 
-      await fetchAdminUsers();
+      if (isSelf) {
+        await logout();
+      } else {
+        await fetchAdminUsers();
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete admin account.");
     }
@@ -1443,26 +1448,24 @@ function AdminCard({
 
       {/* Actions */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        {!isMe && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            className="btn-icon cursor-pointer"
-            title="Edit Admin"
-          >
-            <Edit2 className="w-3.5 h-3.5" />
-          </button>
-        )}
-        {!isMe && !admin.is_super_admin && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit();
+          }}
+          className="btn-icon cursor-pointer"
+          title="Edit Admin"
+        >
+          <Edit2 className="w-3.5 h-3.5" />
+        </button>
+        {(isMe || !admin.is_super_admin) && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
             className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
-            title="Revoke Admin Access"
+            title={isMe ? "Delete Your Account" : "Revoke Admin Access"}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
