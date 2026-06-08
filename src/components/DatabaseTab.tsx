@@ -1458,18 +1458,16 @@ function AdminCard({
         >
           <Edit2 className="w-3.5 h-3.5" />
         </button>
-        {(isMe || !admin.is_super_admin) && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
-            title={isMe ? "Delete Your Account" : "Revoke Admin Access"}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="btn-icon hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 cursor-pointer"
+          title={isMe ? "Delete Your Account" : "Revoke Admin Access"}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
