@@ -73,6 +73,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/idverifier.apk
 
       - name: Create GitHub Release
         id: create_release
@@ -84,9 +85,9 @@ jobs:
             Automated build for Sentinel ID Verifier v${{ steps.version_bump.outputs.version }}.
             
             ### Artifacts Included
-            * **app-debug.apk**: Android installation file (debug configuration).
+            * **idverifier.apk**: Android installation file (debug configuration).
           draft: false
           prerelease: false
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: android/app/build/outputs/apk/debug/idverifier.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

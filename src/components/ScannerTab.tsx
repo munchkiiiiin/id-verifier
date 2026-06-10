@@ -258,14 +258,9 @@ export function ScannerTab({
           <div
             ref={scannerRef}
             className={cn(
-              "relative overflow-hidden rounded-[2rem] border-2 transition-all duration-300",
-              lastFlash ? FLASH_BORDER[lastFlash] : "border-white/10"
+              "relative overflow-hidden rounded-[2rem] border-2 transition-all duration-300 scanner-container",
+              lastFlash ? FLASH_BORDER[lastFlash] : "border-white/10 scanner-shadow"
             )}
-            style={{
-              width:  "min(80vw, 35vh, 330px)",
-              height: "min(80vw, 35vh, 330px)",
-              boxShadow: lastFlash ? undefined : "0 0 60px rgba(246,190,90,0.06), 0 20px 60px rgba(0,0,0,0.5)",
-            }}
           >
             {/* Camera */}
             <Scanner

@@ -61,7 +61,7 @@ VITE_APP_ORIGIN=https://id-verifier-black.vercel.app
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_server_only
 ```
 
-The `SUPABASE_SERVICE_ROLE_KEY` is used only by the serverless endpoint at `api/verify-token` to verify QR tokens for anonymous link opens. Never expose it in client code.
+The `SUPABASE_SERVICE_ROLE_KEY` is used only by the serverless endpoint at `api/verify-token` to verify QR tokens for anonymous link opens. **Never expose it in client code or store it in local environment files.** It should only be configured in production via the [Vercel Project Environment Variables Dashboard](https://vercel.com/docs/projects/environment-variables).
 
 Build command:
 

@@ -1,6 +1,7 @@
 import { Shield, Sun, Moon, X, Info, Download, Smartphone } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "../lib/utils";
+import { Capacitor } from "@capacitor/core";
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -117,7 +118,20 @@ export function SettingsModal({
               )}
               
               <a
-                href="https://github.com/munchkiiiiin/id-verifier/releases/latest/download/app-debug.apk"
+                href="https://github.com/munchkiiiiin/id-verifier/releases/latest/download/idverifier.apk"
+                onClick={(e) => {
+                  const url = "https://github.com/munchkiiiiin/id-verifier/releases/latest/download/idverifier.apk";
+                  if (Capacitor.isNativePlatform()) {
+                    e.preventDefault();
+                    window.open(url, "_system");
+                  } else {
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                    if (isMobile) {
+                      e.preventDefault();
+                      window.location.href = url;
+                    }
+                  }
+                }}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-fluid-xs font-bold uppercase tracking-wider bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 shadow-sm transition-all cursor-pointer text-center"
@@ -143,7 +157,7 @@ export function SettingsModal({
             <div className="border-t border-white/05 pt-3 flex justify-between items-center text-fluid-xs">
               <span className="text-white/40 font-mono uppercase tracking-wider">Version</span>
               <span className="font-mono text-amber-300 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                v3.3.3
+                v{__APP_VERSION__}
               </span>
             </div>
             

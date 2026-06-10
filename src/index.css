@@ -247,6 +247,27 @@ body {
   }
   .btn-icon:hover  { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.9); }
   .btn-icon:active { transform: scale(0.92); }
+
+  /* Custom Styles to avoid inline styles (unsafe-inline CSP compatibility) */
+  .bg-glow-warm {
+    background: radial-gradient(circle, #F6BE5A 0%, transparent 70%);
+  }
+  .bg-glow-cool {
+    background: radial-gradient(circle, #818CF8 0%, transparent 70%);
+  }
+  .pb-nav-safe {
+    padding-bottom: max(0.2rem, env(safe-area-inset-bottom, 0px));
+  }
+  .scanner-container {
+    width: min(80vw, 35vh, 330px);
+    height: min(80vw, 35vh, 330px);
+  }
+  .scanner-shadow {
+    box-shadow: 0 0 60px rgba(246,190,90,0.06), 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .scheme-dark {
+    color-scheme: dark;
+  }
 }
 
 /* ─── Scrollbar (WebKit) ───────────────────────────────────────────── */

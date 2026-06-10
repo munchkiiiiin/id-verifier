@@ -112,13 +112,11 @@ export default function App() {
       >
         {/* top-right warm glow */}
         <div
-          className="absolute -top-[20%] -right-[20%] w-[65vw] h-[65vw] max-w-[340px] max-h-[340px] rounded-full opacity-[0.06]"
-          style={{ background: "radial-gradient(circle, #F6BE5A 0%, transparent 70%)" }}
+          className="absolute -top-[20%] -right-[20%] w-[65vw] h-[65vw] max-w-[340px] max-h-[340px] rounded-full opacity-[0.06] bg-glow-warm"
         />
         {/* bottom-left cool glow */}
         <div
-          className="absolute -bottom-[15%] -left-[15%] w-[55vw] h-[55vw] max-w-[280px] max-h-[280px] rounded-full opacity-[0.04]"
-          style={{ background: "radial-gradient(circle, #818CF8 0%, transparent 70%)" }}
+          className="absolute -bottom-[15%] -left-[15%] w-[55vw] h-[55vw] max-w-[280px] max-h-[280px] rounded-full opacity-[0.04] bg-glow-cool"
         />
       </div>
 
@@ -192,8 +190,7 @@ export default function App() {
 
       {/* ── Bottom nav bar ──────────────────────────────────────── */}
       <nav
-        className="relative z-20 glass border-t border-brand-border h-20 flex justify-around items-center px-2 pb-safe"
-        style={{ paddingBottom: "max(0.2rem, env(safe-area-inset-bottom, 0px))" }}
+        className="relative z-20 glass border-t border-brand-border h-20 flex justify-around items-center px-2 pb-safe pb-nav-safe"
       >
         {/* Tab 1: Home */}
         <button

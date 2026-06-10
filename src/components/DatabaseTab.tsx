@@ -105,11 +105,7 @@ function CustomSelect({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.12, ease: "easeOut" }}
-            className="absolute z-50 w-full mt-1 bg-brand-bg-dark border border-brand-border rounded-2xl shadow-2xl py-1 max-h-60 overflow-y-auto"
-            style={{
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-            }}
+            className="absolute z-50 w-full mt-1 bg-brand-bg-dark border border-brand-border rounded-2xl shadow-2xl py-1 max-h-60 overflow-y-auto backdrop-blur-[20px]"
           >
             {options.map((opt) => (
               <button
@@ -820,12 +816,7 @@ export function DatabaseTab({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="fixed bottom-[calc(7.25rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-lg glass rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl bg-brand-bg-dark/95"
-            style={{
-              boxShadow: "0 10px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(246,190,90,0.15)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
-            }}
+            className="fixed bottom-[calc(7.25rem+env(safe-area-inset-bottom,0px))] left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2.5rem)] max-w-lg glass rounded-2xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl bg-brand-bg-dark/95 backdrop-blur-[20px] shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5),0_0_20px_rgba(246,190,90,0.15)]"
           >
             <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
               <span className="text-fluid-xs font-mono uppercase tracking-widest text-amber-300 font-bold bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
@@ -1270,8 +1261,7 @@ function EmployeeFormModal({
               type="date"
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
-              className="input-base"
-              style={{ colorScheme: "dark" }}
+              className="input-base scheme-dark"
               required
             />
           </div>
@@ -1422,8 +1412,7 @@ function QRModal({ employee, onClose }: { employee: Employee; onClose: () => voi
 
         {/* QR code */}
         <div
-          className="bg-white p-4 rounded-2xl shadow-2xl mb-5"
-          style={{ boxShadow: "0 0 40px rgba(246,190,90,0.15)" }}
+          className="bg-white p-4 rounded-2xl shadow-[0_0_40px_rgba(246,190,90,0.15)] mb-5"
         >
           <QRCodeCanvas
             id="qr-code-canvas"
@@ -1497,8 +1486,7 @@ function LoginForm({
         {/* Icon + title */}
         <div className="flex flex-col items-center mb-7">
           <div
-            className="rounded-3xl glass flex items-center justify-center mb-5 border border-white/10"
-            style={{ width: "4.5rem", height: "4.5rem", boxShadow: "0 0 40px rgba(246,190,90,0.10)" }}
+            className="rounded-3xl glass flex items-center justify-center mb-5 border border-white/10 w-[4.5rem] h-[4.5rem] shadow-[0_0_40px_rgba(246,190,90,0.10)]"
           >
             <Shield className="w-8 h-8 text-amber-300/80" />
           </div>
@@ -2349,8 +2337,7 @@ function BulkEditModal({ selectedCount, employees, onClose, onSave }: BulkEditMo
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="input-base"
-                style={{ colorScheme: "dark" }}
+                className="input-base scheme-dark"
                 placeholder="dd/mm/yyyy (Leave blank to keep unchanged)"
               />
             </div>

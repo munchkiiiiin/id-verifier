@@ -8,7 +8,8 @@ At **id-verifier**, we take security seriously and appreciate your help in keepi
 
 **Please do not open public GitHub issues for security vulnerabilities.**
 
-Instead, email us at: **deveramarkron76@gmail.com**
+Instead, please report security vulnerabilities using GitHub's private vulnerability reporting feature:
+**https://github.com/munchkiiiiin/id-verifier/security/advisories/new**
 
 Include the following information in your report:
 

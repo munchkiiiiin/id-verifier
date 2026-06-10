@@ -49,6 +49,21 @@ async function upstashTtl(key: string): Promise<number | null> {
 // In-memory fallback (best-effort)
 const ipCounters: Map<string, { count: number; windowStart: number }> = new Map();
 
+// Clean up in-memory map periodically to prevent memory leaks
+if (typeof setInterval !== "undefined") {
+  const intervalId = setInterval(() => {
+    const now = Math.floor(Date.now() / 1000);
+    for (const [ip, record] of ipCounters.entries()) {
+      if (now - record.windowStart > RATE_LIMIT_WINDOW_SECONDS) {
+        ipCounters.delete(ip);
+      }
+    }
+  }, 10 * 60 * 1000); // every 10 minutes
+  if (typeof intervalId.unref === "function") {
+    intervalId.unref();
+  }
+}
+
 function redactToken(t: string) {
   if (!t) return "";
   if (t.length <= 10) return t[0] + "***" + t.slice(-1);
@@ -100,26 +115,43 @@ export default async function handler(req: any, res: any) {
   const rawIp = req.headers?.['x-real-ip'] || req.headers?.['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
   const ip = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(',')[0].trim();
 
-  // Prefer Upstash-backed limiter when configured
-  // Require Upstash for rate limiting in production; do not fall back to local memory
-  if (!upstashConfigured()) {
-    console.error('verify-token: Upstash rate limiter not configured');
-    return res.status(500).json({ employee: null, error: 'Rate limiter not configured' } satisfies ApiResponse);
+  let limitExceeded = false;
+  let currentTtl = RATE_LIMIT_WINDOW_SECONDS;
+  let rateLimitChecked = false;
+
+  if (upstashConfigured()) {
+    try {
+      const key = `rl:${ip}`;
+      const count = await upstashIncr(key);
+      if (count === null) throw new Error('upstash_incr_failed');
+      if (count === 1) await upstashExpire(key, RATE_LIMIT_WINDOW_SECONDS);
+      if (count > RATE_LIMIT_MAX) {
+        limitExceeded = true;
+        currentTtl = await upstashTtl(key) || RATE_LIMIT_WINDOW_SECONDS;
+      }
+      rateLimitChecked = true;
+    } catch (err) {
+      console.warn('verify-token: Upstash limiter failed, falling back to local memory:', err?.message ?? err);
+    }
   }
 
-  try {
-    const key = `rl:${ip}`;
-    const count = await upstashIncr(key);
-    if (count === null) throw new Error('upstash_incr_failed');
-    if (count === 1) await upstashExpire(key, RATE_LIMIT_WINDOW_SECONDS);
-    if (count > RATE_LIMIT_MAX) {
-      const ttl = await upstashTtl(key) || RATE_LIMIT_WINDOW_SECONDS;
-      res.setHeader('Retry-After', String(ttl));
-      return res.status(429).json({ employee: null, error: 'Rate limit exceeded' } satisfies ApiResponse);
+  if (!rateLimitChecked) {
+    const now = Math.floor(Date.now() / 1000);
+    const record = ipCounters.get(ip);
+    if (!record || (now - record.windowStart) > RATE_LIMIT_WINDOW_SECONDS) {
+      ipCounters.set(ip, { count: 1, windowStart: now });
+    } else {
+      record.count += 1;
+      if (record.count > RATE_LIMIT_MAX) {
+        limitExceeded = true;
+        currentTtl = RATE_LIMIT_WINDOW_SECONDS - (now - record.windowStart);
+      }
     }
-  } catch (err) {
-    console.error('verify-token: Upstash limiter error', err?.message ?? err);
-    return res.status(502).json({ employee: null, error: 'Rate limiter error' } satisfies ApiResponse);
+  }
+
+  if (limitExceeded) {
+    res.setHeader('Retry-After', String(currentTtl));
+    return res.status(429).json({ employee: null, error: 'Rate limit exceeded' } satisfies ApiResponse);
   }
 
   const rawToken = Array.isArray(req.query?.token) ? req.query.token[0] : req.query?.token;
