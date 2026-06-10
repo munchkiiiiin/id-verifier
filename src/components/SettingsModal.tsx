@@ -124,12 +124,6 @@ export function SettingsModal({
                   if (Capacitor.isNativePlatform()) {
                     e.preventDefault();
                     window.open(url, "_system");
-                  } else {
-                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    if (isMobile) {
-                      e.preventDefault();
-                      window.location.href = url;
-                    }
                   }
                 }}
                 target="_blank"

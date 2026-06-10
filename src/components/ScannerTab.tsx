@@ -245,7 +245,7 @@ export function ScannerTab({
       {/* Left Pane: Header, Scanner, and Actions */}
       <div className="flex-shrink-0 flex flex-col items-center md:w-[380px] lg:w-[420px] md:h-full md:border-r md:border-brand-border md:justify-start md:pb-6 overflow-y-auto">
         {/* ── Header ─────────────────────────────────────────────── */}
-        <header className="flex justify-between items-center px-6 h-16 w-full bg-black/20 border-b border-brand-border flex-shrink-0">
+        <header className="flex justify-between items-center px-6 pt-safe min-h-[4rem] h-auto pb-2 w-full bg-black/20 border-b border-brand-border flex-shrink-0">
           <button className="text-white/60 hover:text-white p-2 rounded-full hover:bg-white/5 transition-colors">
             <Shield className="w-5 h-5" />
           </button>

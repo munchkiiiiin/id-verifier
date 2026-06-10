@@ -68,7 +68,7 @@ export function ReportsTab({ scanLog, onClearLogs }: ReportsTabProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden w-full">
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="flex justify-between items-center px-6 h-16 w-full bg-black/20 border-b border-brand-border flex-shrink-0">
+      <header className="flex justify-between items-center px-6 pt-safe min-h-[4rem] h-auto pb-2 w-full bg-black/20 border-b border-brand-border flex-shrink-0">
         <div className="flex items-center gap-2 text-white font-bold">
           <ClipboardList className="w-5 h-5 text-accent" />
           <span className="font-headline-md tracking-wide">Sentinel Reports</span>
